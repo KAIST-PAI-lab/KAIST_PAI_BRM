@@ -10,7 +10,7 @@ from typing import Optional
 def GPRInstance(nKernel:int, typeKernel:list[str], paramKernel:list[dict], mulIdx:list[list[int]], sumIdx:list[list[int]], alpha=1e-10, normalize_y=True, n_restarts_optimizer=0, random_state=None):
     kernel=KernelInstance(nKernel, typeKernel, paramKernel, mulIdx, sumIdx)
     gpr=GaussianProcessRegressor(kernel, alpha=alpha, normalize_y=normalize_y, n_restarts_optimizer=n_restarts_optimizer, random_state=random_state)
-    return gpr
+    return kernel, gpr
 
 
 ## Adding and multiplying kernel instances are processed after creating all individual kernel instances.
