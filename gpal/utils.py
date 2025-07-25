@@ -9,7 +9,9 @@ from typing import Optional
 from typing import Union
 from typing import Tuple
 from typing import Callable
+from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 
 BoundsType=Union[Tuple[float, float], str]
@@ -309,18 +311,30 @@ def argsConstructor(N:int, kernelTypeIdx:list[int], paramsList:list[list]):
     return typeKernel, paramKernel
 
 
-def plot(figsize:Tuple[int], X_fit:npt.NDArray, X_pred:npt.NDArray, y_fit:npt.NDArray, y_pred:npt.NDArray,
+def plotStdInterval(figsize:Tuple[int], X_fit:npt.NDArray, X_pred:npt.NDArray, y_fit:npt.NDArray, y_pred:npt.NDArray,
          y_std:npt.NDArray, xlabel:str, ylabel:str, sigma_coef:float):
+    if any([not isinstance(fs, int) for fs in figsize]):
+        raise ValueError(f"Elements of figsize should be an int value.")
     if len(figsize)!=2:
         raise ValueError(f"figsize should be of length 2.")
+    if not isinstance(X_fit, np.ndarray):
+        raise TypeError(f"X_fit should be a 2-D numpy array.")
     if X_fit.ndim!=2:
         raise ValueError(f"X_fit should be a 2-D numpy array.")
+    if not isinstance(X_pred, np.ndarray):
+        raise TypeError(f"X_pred should be a 2-D numpy array.")
     if X_pred.ndim!=2:
         raise ValueError(f"X_pred should be a 2-D numpy array.")
+    if not isinstance(y_fit, np.ndarray):
+        raise TypeError(f"y_fit should be a 1-D numpy array.")
     if y_fit.ndim!=1:
         raise ValueError(f"y_fit should be a 1-D numpy array.")
+    if not isinstance(y_pred, np.ndarray):
+        raise TypeError(f"y_pred should be a 1-D numpy array.")
     if y_pred.ndim!=1:
         raise ValueError(f"y_pred should be a 1-D numpy array.")
+    if not isinstance(y_std, np.ndarray):
+        raise TypeError(f"y_std should be a 1-D numpy array.")
     if y_std.ndim!=1:
         raise ValueError(f"y_std should be a 1-D numpy array.")
     if X_fit.shape[0]!=y_fit.shape[0]:
@@ -342,3 +356,112 @@ def plot(figsize:Tuple[int], X_fit:npt.NDArray, X_pred:npt.NDArray, y_fit:npt.ND
     plt.legend()
     plt.tight_layout()
     plt.show()
+
+
+def plotEstim3D(figsize:Tuple[int], gns:npt.NDArray, ubs:npt.NDArray, est:npt.NDArray, 
+                xlabel:str="Given Number", ylabel:str="Upper Bound", zlabel:str="Estimate", title:str="Estimates Plot"):
+    if any([not isinstance(fs, int) for fs in figsize]):
+        raise ValueError(f"Elements of figsize should be an int value.")
+    if len(figsize)!=2:
+        raise ValueError(f"figsize should be of length 2.")
+    if not isinstance(gns, np.ndarray):
+        raise TypeError(f"gns should be a 1-D numpy array.")
+    if gns.ndim!=1:
+        raise ValueError(f"gns should be a 1-D numpy array.")
+    if not isinstance(ubs, np.ndarray):
+        raise TypeError(f"ubs should be a 1-D numpy array.")
+    if ubs.ndim!=1:
+        raise ValueError(f"ubs should be a 1-D numpy array.")
+    if not isinstance(est, np.ndarray):
+        raise TypeError(f"est should be a 1-D numpy array.")
+    if est.ndim!=1:
+        raise ValueError(f"est should be a 1-D numpy array.")
+    if not isinstance(xlabel, str):
+        raise TypeError(f"xlabel should be a string value.")
+    if not isinstance(ylabel, str):
+        raise TypeError(f"ylabel should be a string value.")
+    if not isinstance(zlabel, str):
+        raise TypeError(f"zlabel should be a string value.")
+    if not isinstance(title, str):
+        raise TypeError(f"title should be a string value.")
+    for idx, gn in enumerate(gns):
+        if gn>ubs[idx]:
+            raise ValueError(f"given number should be smaller than upper-bound value: got {gn} and {ubs[idx]} at index {idx}")
+        if gn<0:
+            raise ValueError(f"given number should be non-negative: got {gn} at index {idx}")
+        if est[idx]>ubs[idx]:
+            raise ValueError(f"estimated number should be smaller than upper-bound value: got {est[idx]} and {ubs[idx]} at index {idx}")
+        if est[idx]<0:
+            raise ValueError(f"estimated number should be non-negative: got {est[idx]} at index {idx}")
+        
+    idx=np.arange(len(gns))
+    gns_x=interp1d(idx, gns, kind='cubic')
+    ubs_y=interp1d(idx, ubs, kind='cubic')
+    est_z=interp1d(idx, est, kind='cubic')
+
+    idx_interp=np.linspace(0, len(gns), 5*len(gns))
+    gns_interp=gns_x(idx_interp)
+    ubs_interp=ubs_y(idx_interp)
+    est_interp=est_z(idx_interp)
+
+    fig=plt.figure(figsize=figsize)
+    ax=fig.add_subplot(111, projection='3d')
+    ax.plot(gns_interp, ubs_interp, est_interp, color='black')
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_zlabel(zlabel)
+    ax.set_title(title)
+    plt.show()
+
+
+def plotFreq3D(figsize:Tuple[int], gns:npt.NDArray, ubs:npt.NDArray, 
+               xlabel:str="Given Number", ylabel:str="Upper Bound", zlabel:str="Frequency", 
+               title:str="Design selection frequencies"):
+    
+    if any([not isinstance(fs, int) for fs in figsize]):
+        raise ValueError(f"Elements of figsize should be an int value.")
+    if len(figsize)!=2:
+        raise ValueError(f"figsize should be of length 2.")
+    if not isinstance(gns, np.ndarray):
+        raise TypeError(f"gns should be a 1-D numpy array.")
+    if gns.ndim!=1:
+        raise ValueError(f"gns should be a 1-D numpy array.")
+    if not isinstance(ubs, np.ndarray):
+        raise TypeError(f"ubs should be a 1-D numpy array.")
+    if ubs.ndim!=1:
+        raise ValueError(f"ubs should be a 1-D numpy array.")
+    if not isinstance(xlabel, str):
+        raise TypeError(f"xlabel should be a string value.")
+    if not isinstance(ylabel, str):
+        raise TypeError(f"ylabel should be a string value.")
+    if not isinstance(zlabel, str):
+        raise TypeError(f"zlabel should be a string value.")
+    if not isinstance(title, str):
+        raise TypeError(f"title should be a string value.")
+    for idx, gn in enumerate(gns):
+        if gn>ubs[idx]:
+            raise ValueError(f"given number should be smaller than upper-bound value: got {gn} and {ubs[idx]} at index {idx}")
+        if gn<0:
+            raise ValueError(f"given number should be non-negative: got {gn} at index {idx}")
+       
+    fig=plt.figure(figsize=figsize)
+    ax=fig.add_subplot(projection='3d')
+    hist, gn_edge, ub_edge=np.histogram2d(gns, ubs, bins=[10, 50], range=[[0, 500], [0, 500]])
+
+    gn_pos, ub_pos=np.meshgrid(gn_edge[:-1], ub_edge[:-1], indexing="ij")
+    gn_pos=gn_pos.ravel()
+    ub_pos=ub_pos.ravel()
+    freq_pos=0
+
+    w=50*np.ones_like(freq_pos)
+    d=10*np.ones_like(freq_pos)
+    h=hist.ravel()
+    
+    ax.bar3d(gn_pos, ub_pos, freq_pos, w, d, h, zsort='average')
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_zlabel(zlabel)
+    ax.set_title(title)
+
+    plt.show()
+    
