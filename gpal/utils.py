@@ -27,19 +27,6 @@ kernelTypeDic={0:'ConstantKernel',
                 6:'RBF', 
                 7:'RationalQuadratic', 
                 8:'WhiteKernel'}
-class enumK(Enum):
-    CONSTANT = 1
-    DOT = 2
-    EXPSINE = 3
-    EXPON = 4
-    BASE = 5
-    MATERN = 6
-    PAIRWISE = 7
-    PRODUCT = 8
-    RBF = 9
-    RATQUAD = 10
-    SUM = 11
-    WHITE = 12
 
 class prediction(NamedTuple):
     mean: np.ndarray
@@ -276,6 +263,17 @@ def whitekernelArgs(arg1:float=1.0, arg2:BoundsType=(1e-5,1e5)):
     
 def argsConstructor(N:int, kernelTypeIdx:list[int], paramsList:list[list]):
 
+    if not isinstance(kernelTypeIdx, list):
+        raise TypeError(f"kernelTypeIdx should be a list, got {type(kernelTypeIdx).__name__}.")
+    if not all(isinstance(kti, int) for kti in kernelTypeIdx):
+        typ=kernelTypeIdx[[isinstance(kti, int) for kti in kernelTypeIdx].index(False)]
+        raise TypeError(f"kernelTypeIdx should contain int values, got {type(typ).__name__ }.")
+    if not isinstance(paramsList, list):
+        raise TypeError(f"paramsList should be a list, got {type(paramsList).__name__}.")
+    if not all(isinstance(pl, list) for pl in paramsList):
+        typ=paramsList[[isinstance(pl, list) for pl in paramsList].index(False)]
+        raise TypeError(f"paramsList should contain lists, got {type(typ).__name__ }.")
+    
     ktiMasks=[kti not in set(kernelTypeDic.keys()) for kti in kernelTypeIdx]
     if any(ktiMasks):
         raise ValueError(f"The kernel type index should be in range(0,9).")
@@ -312,7 +310,7 @@ def argsConstructor(N:int, kernelTypeIdx:list[int], paramsList:list[list]):
 
 
 def plotStdInterval(figsize:Tuple[int], X_fit:npt.NDArray, X_pred:npt.NDArray, y_fit:npt.NDArray, y_pred:npt.NDArray,
-         y_std:npt.NDArray, xlabel:str, ylabel:str, sigma_coef:float):
+         y_std:npt.NDArray, xlabel:str="Given Number", ylabel:str="Number Estimate", title:str="Given Number Estimates (2D)", sigma_coef:float=1.0):
     if any([not isinstance(fs, int) for fs in figsize]):
         raise ValueError(f"Elements of figsize should be an int value.")
     if len(figsize)!=2:
@@ -345,7 +343,12 @@ def plotStdInterval(figsize:Tuple[int], X_fit:npt.NDArray, X_pred:npt.NDArray, y
         raise ValueError(f"X_pred and y_std should have equal length in 0-th dimension, got {X_pred.shape[0]} and {y_std.shape[0]}.")
     if sigma_coef<0:
         raise ValueError(f"sigma_coef should be non-negative, got {sigma_coef}.")
-    
+    if not isinstance(xlabel, str):
+        raise TypeError(f"xlabel should be a string value.")
+    if not isinstance(ylabel, str):
+        raise TypeError(f"ylabel should be a string value.")
+    if not isinstance(title, str):
+        raise TypeError(f"title should be a string value.")
 
     plt.figure(figsize=figsize)
     plt.scatter(X_fit, y_fit, c='black', label='Data')
@@ -353,13 +356,14 @@ def plotStdInterval(figsize:Tuple[int], X_fit:npt.NDArray, X_pred:npt.NDArray, y
     plt.fill_between(X_pred.ravel(), y_pred-sigma_coef*y_std, y_pred+sigma_coef*y_std, alpha=0.3, label="Uncertainty")
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
+    plt.title(title)
     plt.legend()
     plt.tight_layout()
     plt.show()
 
 
 def plotEstim3D(figsize:Tuple[int], gns:npt.NDArray, ubs:npt.NDArray, est:npt.NDArray, 
-                xlabel:str="Given Number", ylabel:str="Upper Bound", zlabel:str="Estimate", title:str="Estimates Plot"):
+                xlabel:str="Given Number", ylabel:str="Upper Bound", zlabel:str="Number Estimate", title:str='Given Number Estimates (3D)'):
     if any([not isinstance(fs, int) for fs in figsize]):
         raise ValueError(f"Elements of figsize should be an int value.")
     if len(figsize)!=2:

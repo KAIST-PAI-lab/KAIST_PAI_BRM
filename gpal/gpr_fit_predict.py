@@ -71,14 +71,14 @@ def nextDesign(preds:prediction, inputData:npt.NDArray[np.float64]):
         raise ValueError(f"inputData should be a 2-D numpy array with two columns, got {inputData.shape[1]} columns.")    
     if prediction.mean is None:
         raise ValueError(f"The value of 'mean' field of preds should not be None.")
-    if prediction.std is None:
-        raise ValueError(f"The value of 'std' field of preds should not be None.") 
     predMean=prediction.mean
-    predStd=prediction.std
-    predCov=prediction.cov
+    if prediction.std is not None:
+        predStd=prediction.std
+    if prediction.cov is not None:
+        predCov=prediction.cov
 
     maxStdIdx=np.argwhere(predStd==np.max(predStd))
     nextDesignIdx=maxStdIdx[np.random.choice(len(maxStdIdx))]
-    nextDesign=np.squeeze(inputData[nextDesignIdx])
+    nextDesign=inputData[nextDesignIdx]
     
     return nextDesign, predMean, predStd

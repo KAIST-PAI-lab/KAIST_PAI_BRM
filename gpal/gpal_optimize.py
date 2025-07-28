@@ -8,7 +8,6 @@ from nlt.gpal.gpr_fit_predict import gprFit
 from nlt.gpal.gpr_fit_predict import gprPredict
 from nlt.gpal.gpr_fit_predict import nextDesign
 from nlt.gpal.gpr_instance import GPRInstance
-from nlt.gpal.gpr_instance import KernelInstance
 from nlt.gpal.utils import *
 
 
@@ -80,12 +79,12 @@ def gpal_optimize(gpr:GaussianProcessRegressor, gns:npt.NDArray[np.float64], ubs
 
     lml=gprFit(gpr, X_fit, y_fit)
     pred=gprPredict(gpr, X_pred, r_s, r_c)
-    nextX=nextDesign(pred, X_fit)
+    nextX, pMean, pStd=nextDesign(pred, X_fit)
 
     next_gn=nextX[0]
     next_ub=nextX[1]
 
-    return next_gn, next_ub, lml
+    return next_gn, next_ub, pMean, pStd, lml
 
 
 

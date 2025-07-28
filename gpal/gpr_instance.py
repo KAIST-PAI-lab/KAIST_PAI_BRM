@@ -11,7 +11,8 @@ import numpy.typing as npt
 ## typeKernel: List of types of each kernel instance
 ## paramKernel: List of parameters for each kernel instance
 def GPRInstance(nKernel:int, typeKernel:list[str], paramKernel:list[dict], mulIdx:list[list[int]], sumIdx:list[list[int]], 
-                alpha:Union[float, npt.NDArray[np.float64]]=1e-10, normalize_y:bool=True, n_restarts_optimizer:int=0, random_state=None):
+                alpha:Union[float, npt.NDArray[np.float64]]=1e-10, normalize_y:bool=True, n_restarts_optimizer:int=0, 
+                random_state:Optional[Union[int, np.random.RandomState]]=None):
     if not isinstance(alpha, Union[float, np.ndarray]):
         raise TypeError(f"alpha should be float or numpy array: got {type(alpha).__name__}.")
     if not isinstance(normalize_y, bool):
@@ -20,14 +21,19 @@ def GPRInstance(nKernel:int, typeKernel:list[str], paramKernel:list[dict], mulId
         raise TypeError(f"n_restarts_optimizer should be an int value.")
     if n_restarts_optimizer<0:
         raise ValueError(f"n_restarts_optimizer should be non-negative.")
-    
-    kernel=KernelInstance(nKernel, typeKernel, paramKernel, mulIdx, sumIdx)
+    if random_state is not None:
+        if not (isinstance(random_state, int) or isinstance(random_state, np.random.RandomState)):
+            raise TypeError(f"random_state should be a None, an int value, or a RandomState object.")
+
+
+    kBuilder=KernelBuilder(nKernel, typeKernel, paramKernel, mulIdx, sumIdx)
+    kernel=kBuilder.create_compound()
     gpr=GaussianProcessRegressor(kernel, alpha=alpha, normalize_y=normalize_y, n_restarts_optimizer=n_restarts_optimizer, random_state=random_state)
     return kernel, gpr
 
 
 ## Adding and multiplying kernel instances are processed after creating all individual kernel instances.
-class KernelInstance(Kernel):
+class KernelBuilder():
     def __init__(self, nKernel:int, typeKernel:list[str], paramKernel:list[dict], mulIdx:list[list[int]], sumIdx:list[list[int]]):
         if not isinstance(nKernel, int):
             raise TypeError(f"nKernel should be an int value, got {type(nKernel).__name__}.")
@@ -99,20 +105,20 @@ class KernelInstance(Kernel):
                         'Matern', 'PairwiseKernel', 'RBF', 'RationalQuadratic', 'WhiteKernel']
         self.kernel: Optional[Kernel] = None
         self.kernels=[]
-
-        if nKernel==1:
-            self.kernel=self.create(typeKernel[0], paramKernel[0])    
-        
+    
+    def create_compound(self):
+        if self.nKernel==1:
+            kernel=self.create(self.typeKernel[0], self.paramKernel[0])    
         else:
-            for n in range(nKernel):
-                kernelElem=self.create(typeKernel[n], paramKernel[n])
+            for n in range(self.nKernel):
+                kernelElem=self.create(self.typeKernel[n], self.paramKernel[n])
                 self.kernels.append(kernelElem)
 
-            for mn in range(len(mulIdx[0])):
+            for mn in range(len(self.mulIdx[0])):
                 ## Since two kernels will be popped and one kernel (mulKernel) will be inserted
                 ## The index of the operand kernel decrements for each iteration
-                idx1=mulIdx[0][mn]-mn
-                idx2=mulIdx[1][mn]-mn
+                idx1=self.mulIdx[0][mn]-mn
+                idx2=self.mulIdx[1][mn]-mn
 
                 k1=self.kernels[idx1]  
                 k2=self.kernels[idx2]
@@ -123,7 +129,9 @@ class KernelInstance(Kernel):
                 self.kernels.insert(idx1, mulKernel)
 
             kernel=reduce(lambda k1, k2: k1+k2, self.kernels)
+
         self.kernel=kernel
+        return self.kernel
     
     def create(self, typeK:str, params:dict):
         def matchParam(kernel:Kernel, params:dict):
@@ -143,12 +151,6 @@ class KernelInstance(Kernel):
         except ValueError:
             raise ValueError(f"The type '{typeK}' is not a valid kernel type.")
         
-        '''
-        if kernelIdx==0:
-            if not all(isinstance(p, Kernel) for p in params[0]):
-                raise TypeError("The parameters for CompoundKernel should be a valid Kernel instances.")
-            kernelInstance=CompoundKernel(**params)
-        '''
         if kernelIdx==0:
             kernelInstance=ConstantKernel()
             if matchParam(kernelInstance, params):
@@ -202,7 +204,7 @@ class KernelInstance(Kernel):
             raise ValueError(f"The type '{typeK}' is not a valid basic kernel type.")
 
         return kernelInstance
-    
+    '''
     def __call__(self, X, Y=None, eval_gradient=False):
         return self.kernel(X, Y, eval_gradient)
     
@@ -219,4 +221,4 @@ class KernelInstance(Kernel):
                 "paramKernel":self.paramKernel,
                 "mulIdx":self.mulIdx, 
                 "sumIdx":self.sumIdx}
-    
+    '''
