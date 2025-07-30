@@ -16,7 +16,7 @@ from psychopy import logging
 logging.console.setLevel(logging.ERROR)
 
 
-from nlt.argparser import argparser
+from nlt.gpal.argparser import argparser
 from nlt.gpal.gpr_instance import *
 from nlt.gpal.utils import prediction, argsConstructor, plotStdInterval, plotEstim3D, plotFreq3D
 from nlt.nlt_main.utils.utils import collect_participant_info, save_results
@@ -118,10 +118,11 @@ if __name__=="__main__":
     save_models_sbj_dir=args.save_models_dir+'/'+sbj  # The directory to save the optimized model for each subject
 
     type_kernels, param_dics=argsConstructor(args.n_kernel, args.type_kernels_index, args.parameters_list)
-    kernelBuilder=KernelBuilder(args.n_kernel, type_kernels, param_dics, args.multiplied_indices, args.summed_indices)
-    kernel=kernelBuilder.create_compound()
-    gpr=GaussianProcessRegressor(kernel, alpha=args.alpha, n_restarts_optimizer=args.n_restarts_optimizer, 
-                                 normalize_y=args.normalize_y, random_state=args.gpr_random_state)
+    #kernelBuilder=KernelBuilder(args.n_kernel, type_kernels, param_dics, args.multiplied_indices, args.summed_indices)
+    #kernel=kernelBuilder.create_compound()
+    kernel, gpr=GPRInstance(args.n_kernel, type_kernels, param_dics, args.multiplied_indices, args.summed_indices, 
+                            alpha=args.alpha, n_restarts_optimizer=args.n_restarts_optimizer, 
+                            normalize_y=args.normalize_y, random_state=args.gpr_random_state)
     
     run_experiment(args, gpr, subject_id)
     
