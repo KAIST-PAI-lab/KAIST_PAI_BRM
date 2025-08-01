@@ -2,6 +2,7 @@ from psychopy import visual, core, event, gui
 import pandas as pd
 import random
 from datetime import datetime
+from dateutil import parser
 
 def collect_participant_info():
     """
@@ -9,19 +10,20 @@ def collect_participant_info():
     """
     dlg = gui.Dlg(title="Participant Information")
     dlg.addText('Please enter the following info:')
-    dlg.addField('Name:')
     dlg.addField('Participant ID:')
+    dlg.addField('Name:')
     dlg.addField('Birthdate (YYYY-MM-DD):')
     dlg.addField('Gender:', choices=['Male', 'Female', 'Other'])
     dlg.addField('Handedness:', choices=['Right', 'Left', 'Ambidextrous'])
     dlg.addField('Major/Grade:')
 
     ok_data = dlg.show()
+    
     if dlg.OK:
         info = {
-            'Name': ok_data[0],
-            'Participant ID': ok_data[1],
-            'Birthdate': datetime.strptime(ok_data[2], '%Y-%m-%d'),
+            'Participant ID': ok_data[0],
+            'Name': ok_data[1],
+            'Birthdate': parser.parse(ok_data[2], yearfirst=True, dayfirst=False).date(),
             'Gender': ok_data[3],
             'Handedness': ok_data[4],
             'Major/Grade': ok_data[5]

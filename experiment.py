@@ -124,13 +124,13 @@ if __name__=="__main__":
     print(f"Participant Info: {info}")
 
     # Create a window 
-    win = visual.Window([1800, 1200], color='grey', units='pix', fullscr=False)
+    win = visual.Window([1800, 1200], color='grey', units='pix', fullscr=True)
     line = visual.Line(win, start=(-500, 0), end=(500, 0), lineColor='black')
     line_leftend = visual.Line(win, start=(-500, -10), end=(-500, 10), lineColor='black')
     line_rightend = visual.Line(win, start=(500, -10), end=(500, 10), lineColor='black')
-    left_label = visual.Rect(win, width=300, height=300, pos=(-500, -150), fillColor=None, lineColor='black')
-    right_label = visual.Rect(win, width=300, height=300, pos=(500, -150), fillColor=None, lineColor='black')
-    question_label = visual.Rect(win, width=300, height=300, pos=(0, 150), fillColor=None, lineColor='black')
+    left_label = visual.Rect(win, width=300, height=300, pos=(-500, -200), fillColor=None, lineColor='black')
+    right_label = visual.Rect(win, width=300, height=300, pos=(500, -200), fillColor=None, lineColor='black')
+    question_label = visual.Rect(win, width=300, height=300, pos=(0, 200), fillColor=None, lineColor='black')
 
     prompt = visual.TextStim(win, text='', pos=(0, -400), color='black')
     marker = visual.Line(win, start=(0, -10), end=(0, 10), lineColor='orange', lineWidth=3)
@@ -139,7 +139,7 @@ if __name__=="__main__":
     img_stim = visual.ImageStim(
         win=win,
         image='./nlt_main/images/random_noise.png',
-        pos=(0, 150),
+        pos=(0, 200),
         size=(300, 300)
     )
 

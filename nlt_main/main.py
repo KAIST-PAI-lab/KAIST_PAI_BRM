@@ -21,7 +21,7 @@ from nlt_main.utils.utils import collect_participant_info, save_results
 from nlt_main.NLE.draw_dots import draw_grid_position, calculate_dot_size
 from gpal.gpal_optimize import gpal_optimize2D
 
-def show_instructions(visuals):
+def show_instructions(visuals, text):
     """
     Display the instructions for the number line estimation task.
     """
@@ -33,7 +33,7 @@ def show_instructions(visuals):
     right_label=visuals['right_label']
     
 
-    positions = draw_grid_position(500, 4, 300, 300, box_center=(500, -150), padding=20)
+    positions = draw_grid_position(500, 4, 300, 300, box_center=(500, -200), padding=25)
     right_dots = ElementArrayStim(win,
                                    nElements=500,
                                    xys=positions,
@@ -50,11 +50,7 @@ def show_instructions(visuals):
     right_dots.draw()
 
 
-    instructions = visual.TextStim(win, text="In this task, there will be a number line like this one.\n"
-                                             "Each number line will have no dots at one end and some dots at the other end.\n"
-                                             "There will be a number of dots appearing for a short time above a line.\n"
-                                             "Please click on the line where the dot goes.\n"
-                                             "Press the space bar to begin.", color='black', wrapWidth=1500, pos=(0, -400))
+    instructions = visual.TextStim(win, text=text, color='black', wrapWidth=1500, pos=(0, -500))
 
     instructions.draw()
     win.flip()
@@ -78,7 +74,7 @@ def trial(number, dot_size, visuals, max_number=100):
     img_stim=visuals['img_stim']
 
 
-    right_dots_pos = draw_grid_position(max_number, 4, 300, 300, box_center=(500, -150), padding=20)
+    right_dots_pos = draw_grid_position(max_number, 4, 300, 300, box_center=(500, -200), padding=25)
     right_dots = ElementArrayStim(win,
                                    nElements=max_number,
                                    xys=right_dots_pos,
@@ -88,7 +84,7 @@ def trial(number, dot_size, visuals, max_number=100):
                                    elementMask='circle',
                                    interpolate=True)
 
-    question_dots_pos = draw_grid_position(number, dot_size, 300, 300, box_center=(0, 150), padding=20)
+    question_dots_pos = draw_grid_position(number, dot_size, 300, 300, box_center=(0, 200), padding=25)
     question_dots = ElementArrayStim(win,
                                       nElements=number,
                                       xys=question_dots_pos,
@@ -132,7 +128,7 @@ def trial(number, dot_size, visuals, max_number=100):
             end_time = time.time()
             reaction_time = end_time - start_time
 
-            if x < -500 or x > 500:
+            if x < -500 or x > 500 or y < -20 or y > 20:
                 continue
 
             clicked = True
@@ -147,7 +143,7 @@ def trial(number, dot_size, visuals, max_number=100):
     # Get estimation
     est = round((x + 500) / 1000 * max_number, 2)
     res = [{'timestamp': timestep, 'given_number': number, 'upper_bound': max_number, 'estimation': est, 'estimation_rt': reaction_time, 'stimulus_ts_on': start_time, 'stimulus_ts_off': end_time, 'size_control': dot_size}]
-    prompt.text = "Press spacebar to continue."
+    prompt.text = "계속 진행하려면 스페이스바를 누르세요."
 
     # Draw the final screen with the estimation mark
     line.draw()
@@ -197,8 +193,8 @@ def run_NLE_block(gpr, records, trial_idx, visuals, return_std=True, return_cov=
 
     dot_size = 4 if not size_control else calculate_dot_size(max_number_size=4, number=number, max_number=max_number)
     #print(f"number: {number}")
-    print(f"max_number: {max_number}")
-    print(f"dot_size: {dot_size}")
+    # print(f"max_number: {max_number}")
+    # print(f"dot_size: {dot_size}")
     res = trial(number, dot_size, visuals, max_number=max_number)
     
     res[0]['size_control'] = 1 if size_control else 0
@@ -216,7 +212,13 @@ def run_NLE_block(gpr, records, trial_idx, visuals, return_std=True, return_cov=
 
 def run_experiment(args, gpr, visuals, info):
 
-    show_instructions(visuals)
+    intro_text = "본 실험에서, 이 작업에는 다음과 같은 숫자 선이 있습니다.\n" \
+                "각 숫자 선의 왼쪽 끝에는 점이 없고 오른쪽 쪽 끝에는 몇 개의 점이 있습니다.\n" \
+                "선 위에 점이 잠시 나타납니다.\n" \
+                "선 위에서 점이 위치할 곳을 클릭해 주세요.\n" \
+                "스페이스바를 눌러 시작하세요."
+
+    show_instructions(visuals, intro_text)
 
     num_trials = args.n_trials 
     record_array_pre=np.zeros((3, 5))
@@ -225,6 +227,9 @@ def run_experiment(args, gpr, visuals, info):
     # Run the pre-NLE block (test trials)
     for preIdx in range(5):
         results = run_NLE_block(gpr, record_array_pre, 0, visuals, return_std=args.return_std, return_cov=args.return_cov) # for 5 test trials
+
+    test_text = "연습이 종료되었습니다. \n 궁금한 점이 있으시면 질문해주세요. \n 계속 진행하시려면 스페이스바를 누르세요."  
+    show_instructions(visuals, test_text)  
 
     # Run the NLE block
     block_res = []

@@ -9,7 +9,7 @@ def draw_grid_position(n_dots, dot_size, boxW, boxH, box_center=(0, 0), padding=
     Draws a grid of positions for the dots within a specified box, 
     so that the dots are evenly spaced.
     """
-    itemWH = dot_size * 2
+    itemWH = dot_size * 1.75
     usable_boxW = boxW - 2 * (padding + dot_size / 2)
     usable_boxH = boxH - 2 * (padding + dot_size / 2)
 
