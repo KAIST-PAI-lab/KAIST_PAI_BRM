@@ -1,0 +1,25 @@
+n_trials: 45
+seed: 0
+
+n_kernels: 2
+alpha: 1e-10
+normalize_y: True
+n_restarts_optimizer: 0
+type_kernels_index: [0,6]
+parameters_list: [[1.0, 'fixed'],[1.0, 'fixed']]
+multiplied_indices: [[0], [1]]
+summed_indices: [[], []]
+gpr_random_state: None
+
+return_std: True
+return_cov: False
+
+optim_mode: 'GPAL'
+base_model: None
+save_results_dir: '../saved_results'
+save_models_dir: '../saved_models'
+enable_gpu: False
+subject_prefix: 'Subject'
+
+
+

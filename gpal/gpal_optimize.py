@@ -1,14 +1,11 @@
 from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import *
 import numpy as np
 from functools import reduce
-from typing import Optional
+from typing import Callable
 import numpy.typing as npt
-from nlt.gpal.gpr_fit_predict import gprFit
-from nlt.gpal.gpr_fit_predict import gprPredict
-from nlt.gpal.gpr_fit_predict import nextDesign
-from nlt.gpal.gpr_instance import GPRInstance
-from nlt.gpal.utils import *
+from gpal.gpr_fit_predict import *
+#from gpal.gpr_instance import GPRInstance
+from gpal.utils import *
 
 
 ## args
@@ -24,68 +21,129 @@ from nlt.gpal.utils import *
 ## r_s: random_state of GPRInstance
 
 
-def gpal_optimize(gpr:GaussianProcessRegressor, gns:npt.NDArray[np.float64], ubs:npt.NDArray[np.float64], 
-                  gnEsts:npt.NDArray[np.float64], r_s:bool, r_c:bool):
+def gpal_optimize2D(gpr:GaussianProcessRegressor, dv1:npt.NDArray[np.float64], dv2:npt.NDArray[np.float64], 
+                  est:npt.NDArray[np.float64], dv1Spec:list, dv2Spec:list, 
+                  masking:Callable, r_s: bool, r_c:bool):
     if not isinstance(gpr, GaussianProcessRegressor):
         raise TypeError(f"gpr should be a GaussianProcessRegressor instance, got {type(gpr).__name__}.")
-    if not isinstance(gns, np.ndarray):
-        raise TypeError(f"gns should be a 1-D numpy array.")
-    if not all(isinstance(gn, np.floating) for gn in gns):
-        typ=gns[[isinstance(gn, np.floating) for gn in gns].index(False)]
-        raise TypeError(f"gns should contain float values, got {type(typ).__name__ }.")
-    if gns.ndim!=1:
-        raise ValueError(f"gns should be a 1-D numpy array.")
-    N=gns.shape[0]
-    if not isinstance(ubs, np.ndarray):
-        raise TypeError(f"ubs should be a 1-D numpy array.")
-    if not all(isinstance(ub, np.floating) for ub in ubs):
-        typ=ubs[[isinstance(ub, np.floating) for ub in ubs].index(False)]
-        raise TypeError(f"ubs should contain float values, got {type(typ).__name__ }.")
-    if ubs.ndim!=1:
-        raise ValueError(f"ubs should be a 1-D numpy array.")
-    if ubs.shape[0]!=N:
-        raise ValueError(f"ubs should be of length {N}, got {ubs.shape[0]}.")
-    if not isinstance(gnEsts, np.ndarray):
-        raise TypeError(f"gnEsts should be a 1-D numpy array.")
-    if not all(isinstance(gne, np.floating) for gne in gnEsts):
-        typ=gnEsts[[isinstance(gne, np.floating) for gne in gnEsts].index(False)]
-        raise TypeError(f"gnEsts should contain float values, got {type(typ).__name__ }.")
-    if gnEsts.ndim!=1:
-        raise ValueError(f"gnEsts should be a 1-D numpy array.")
-    if gnEsts.shape[0]!=N:
-        raise ValueError(f"gnEsts should be of length {N}, got {gnEsts.shape[0]}.")
+    if not isinstance(dv1, np.ndarray):
+        raise TypeError(f"dv1 should be a numpy array.")
+    if dv1.dtype!=np.float64:
+        raise TypeError(f"dv1 should have a dtype of np.float64.")
+    if dv1.ndim!=1:
+        raise ValueError(f"dv1 should be a 1D array.")
+    N=dv1.shape[0]
+    if not isinstance(dv2, np.ndarray):
+        raise TypeError(f"dv2 should be a numpy array.")
+    if dv2.dtype!=np.float64:
+        raise TypeError(f"dv2 should have a dtype of np.float64.")
+    if dv2.ndim!=1:
+        raise ValueError(f"dv2 should be a 1D array.")
+    if dv2.shape[0]!=N:
+        raise ValueError(f"dv2 should be of length {N}, got {dv2.shape[0]}.")
+    if not isinstance(est, np.ndarray):
+        raise TypeError(f"est should be a numpy array.")
+    if est.dtype!=np.float64:
+        raise TypeError(f"est should have a dtype of np.float64.")
+    if est.ndim!=1:
+        raise ValueError(f"ests should be a 1D array.")
+    if est.shape[0]!=N:
+        raise ValueError(f"ests should be of length {N}, got {est.shape[0]}.")
+    if not isinstance(dv1Spec, list):
+        raise TypeError(f"dv1Spec should be a list.")
+    if len(dv1Spec)!=3:
+        raise ValueError(f"dv1Spec should have a length of 3, got {len(dv1Spec)}.")
+    if not isinstance(dv1Spec[2], int):
+        raise TypeError(f"The last element of dv1Spec should be an integer value.")
+    if not isinstance(dv2Spec, list):
+        raise TypeError(f"dv2Spec should be a list.")
+    if len(dv2Spec)!=3:
+        raise ValueError(f"dv2Spec should have a length of 3, got {len(dv2Spec)}.")
+    if not isinstance(dv2Spec[2], int):
+        raise TypeError(f"The last element of dv2Spec should be an integer value.")
+    if not callable(masking):
+        raise TypeError(f"masking should be a callable function.")
     if not isinstance(r_s, bool):
         raise TypeError(f"r_s should be a bool value, got {type(r_s).__name__}.")
     if not isinstance(r_c, bool):
         raise TypeError(f"r_c should be a bool value, got {type(r_c).__name__}.")    
-    if not np.all(ubs>gns):
-        raise ValueError("Upper bound values should be larger than corresponding given number values.")
-    if not np.all(ubs>gnEsts):
-        raise ValueError("Upper bound values should be larger than given number estimates at the same index.")
     
-    X_fit=np.column_stack([gns, ubs])
-    y_fit=gnEsts
-    gpr.fit(X_fit, y_fit)
+    X_fit=np.column_stack([dv1, dv2])
+    y_fit=est
 
-    gn_cands=np.linspace(5, 500, 500-5+1)
-    ub_cands=np.linspace(50, 500, 10)
+    dv1_cands=np.linspace(dv1Spec[0], dv1Spec[1], dv1Spec[2])
+    dv2_cands=np.linspace(dv2Spec[0], dv2Spec[1], dv2Spec[2])
 
-    gn_grid, ub_grid=np.meshgrid(gn_cands, ub_cands, indexing='ij')
-    gn_grid=gn_grid.ravel()
-    ub_grid=ub_grid.ravel()
+    dv1_grid, dv2_grid=np.meshgrid(dv1_cands, dv2_cands, indexing='ij')
+    dv1_grid=dv1_grid.ravel()
+    dv2_grid=dv2_grid.ravel()
 
-    mask=gn_grid<=ub_grid
-    X_pred=np.stack([gn_grid[mask], ub_grid[mask]], axis=-1)
+    mask=masking(dv1_grid, dv2_grid)  # Masking the 2D coordinates with a lambda equation
+    dvs_grid=np.column_stack([dv1_grid, dv2_grid])
+    X_pred=dvs_grid[mask,:]
+    lml=gprFit2D(gpr, X_fit, y_fit)
+    pred=gprPredict2D(gpr, X_pred, r_s, r_c)
+    nextX, pMean, pStd=nextDesign2D(pred, X_pred)
 
-    lml=gprFit(gpr, X_fit, y_fit)
-    pred=gprPredict(gpr, X_pred, r_s, r_c)
-    nextX, pMean, pStd=nextDesign(pred, X_fit)
 
-    next_gn=nextX[0]
-    next_ub=nextX[1]
+    return nextX, pMean, pStd, lml
 
-    return next_gn, next_ub, pMean, pStd, lml
 
+
+
+
+
+
+
+
+def gpal_optimize1D(gpr:GaussianProcessRegressor, dv1:npt.NDArray[np.float64], 
+                  est:npt.NDArray[np.float64], dv1Spec:list,
+                  masking:Callable, r_s: bool, r_c:bool):
+    if not isinstance(gpr, GaussianProcessRegressor):
+        raise TypeError(f"gpr should be a GaussianProcessRegressor instance, got {type(gpr).__name__}.")
+    if not isinstance(dv1, np.ndarray):
+        raise TypeError(f"dv1 should be a numpy array.")
+    if dv1.dtype!=np.float64:
+        raise TypeError(f"dv1 should have a dtype of np.float64.")
+    if dv1.ndim!=1:
+        raise ValueError(f"dv1 should be a 1D array.")
+    N=dv1.shape[0]
+    if not isinstance(est, np.ndarray):
+        raise TypeError(f"est should be a numpy array.")
+    if est.dtype!=np.float64:
+        raise TypeError(f"est should have a dtype of np.float64.")
+    if est.ndim!=1:
+        raise ValueError(f"ests should be a 1D array.")
+    if est.shape[0]!=N:
+        raise ValueError(f"ests should be of length {N}, got {est.shape[0]}.")
+    if not isinstance(dv1Spec, list):
+        raise TypeError(f"dv1Spec should be a list.")
+    if len(dv1Spec)!=3:
+        raise ValueError(f"dv1Spec should have a length of 3, got {len(dv1Spec)}.")
+    if not isinstance(dv1Spec[2], int):
+        raise TypeError(f"The last element of dv1Spec should be an integer value.")
+    if not callable(masking):
+        raise TypeError(f"masking should be a callable function.")
+    if not isinstance(r_s, bool):
+        raise TypeError(f"r_s should be a bool value, got {type(r_s).__name__}.")
+    if not isinstance(r_c, bool):
+        raise TypeError(f"r_c should be a bool value, got {type(r_c).__name__}.")    
+    
+    X_fit=dv1
+    y_fit=est
+
+    dv1_grid=np.linspace(dv1Spec[0], dv1Spec[1], dv1Spec[2])
+
+    mask=masking(dv1_grid)  # Masking the 2D coordinates with a lambda equation
+    dv1_grid_mask=np.where(mask, dv1_grid, np.nan)
+    X_pred=dv1_grid_mask
+
+    lml=gprFit1D(gpr, X_fit, y_fit)
+    pred=gprPredict1D(gpr, X_pred, r_s, r_c)
+    nextX, pMean, pStd=nextDesign1D(pred, X_pred)
+
+
+    return nextX, pMean, pStd, lml
 
 
 

@@ -17,15 +17,23 @@ from psychopy import logging
 logging.console.setLevel(logging.ERROR)
 
 # Import some functions from utils
-from utils.utils import collect_participant_info, save_results
-from NLE.draw_dots import draw_grid_position, calculate_dot_size
-from nlt.gpal.gpal_optimize import gpal_optimize
+from nlt_main.utils.utils import collect_participant_info, save_results
+from nlt_main.NLE.draw_dots import draw_grid_position, calculate_dot_size
+from gpal.gpal_optimize import gpal_optimize2D
 
-def show_instructions():
+def show_instructions(visuals):
     """
     Display the instructions for the number line estimation task.
     """
-    positions = draw_grid_position(500, 4, 300, 250, box_center=(500, -150), padding=20)
+    win=visuals['win']
+    line=visuals['line']
+    line_leftend=visuals['line_leftend']
+    line_rightend=visuals['line_rightend']
+    left_label=visuals['left_label']
+    right_label=visuals['right_label']
+    
+
+    positions = draw_grid_position(500, 4, 300, 300, box_center=(500, -150), padding=20)
     right_dots = ElementArrayStim(win,
                                    nElements=500,
                                    xys=positions,
@@ -52,13 +60,25 @@ def show_instructions():
     win.flip()
     event.waitKeys(keyList=['space'])
 
-def trial(number, dot_size, max_number=100):
+def trial(number, dot_size, visuals, max_number=100):
     """
     Run a single trial of the number line estimation task.
     All dots have same size, so this function is used first half of the number-line task.
     """
 
-    right_dots_pos = draw_grid_position(max_number, 4, 300, 250, box_center=(500, -150), padding=20)
+    win=visuals['win']
+    line=visuals['line']
+    line_leftend=visuals['line_leftend']
+    line_rightend=visuals['line_rightend']
+    left_label=visuals['left_label']
+    right_label=visuals['right_label']
+    question_label=visuals['question_label']
+    prompt=visuals['prompt']
+    marker=visuals['marker']
+    img_stim=visuals['img_stim']
+
+
+    right_dots_pos = draw_grid_position(max_number, 4, 300, 300, box_center=(500, -150), padding=20)
     right_dots = ElementArrayStim(win,
                                    nElements=max_number,
                                    xys=right_dots_pos,
@@ -68,7 +88,7 @@ def trial(number, dot_size, max_number=100):
                                    elementMask='circle',
                                    interpolate=True)
 
-    question_dots_pos = draw_grid_position(number, dot_size, 300, 250, box_center=(0, 150), padding=20)
+    question_dots_pos = draw_grid_position(number, dot_size, 300, 300, box_center=(0, 150), padding=20)
     question_dots = ElementArrayStim(win,
                                       nElements=number,
                                       xys=question_dots_pos,
@@ -126,7 +146,7 @@ def trial(number, dot_size, max_number=100):
 
     # Get estimation
     est = round((x + 500) / 1000 * max_number, 2)
-    res = [{'timestamp': timestep, 'given_number': number, 'upperbound': max_number, 'estimation': est, 'estimation_rt': reaction_time, 'stimulus_ts_on': start_time, 'stimulus_ts_off': end_time, 'size_control': dot_size}]
+    res = [{'timestamp': timestep, 'given_number': number, 'upper_bound': max_number, 'estimation': est, 'estimation_rt': reaction_time, 'stimulus_ts_on': start_time, 'stimulus_ts_off': end_time, 'size_control': dot_size}]
     prompt.text = "Press spacebar to continue."
 
     # Draw the final screen with the estimation mark
@@ -143,7 +163,7 @@ def trial(number, dot_size, max_number=100):
     return res
 
 
-def run_NLE_block(gpr, records, num_trials, return_std=True, return_cov=False, size_control=False):
+def run_NLE_block(gpr, records, trial_idx, visuals, return_std=True, return_cov=False, size_control=False):
     """
     AFTER GPAL has been implemented, this function will run a block of the number line estimation task, using GPAL to optimize the given-number and upperbound number.
 
@@ -156,95 +176,86 @@ def run_NLE_block(gpr, records, num_trials, return_std=True, return_cov=False, s
     The first block uses a fixed dot size, while the second block uses variable dot sizes. 
     """
 
-    block_res = []
+    #for i in range(num_trials):
+    max_number_candidates = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+    if trial_idx==0:
+        max_number = random.choice(max_number_candidates)
+        number = random.randint(5, max_number)  # 5이상 상한선 미만 임의의 숫자 선택 (would be changed later)
+        pMean=0
+        pStd=1
+        lml=0
+    else:
+        mask=lambda X,Y: X<Y
+        dv1_spec=[5, 500, int((500-5)/1+1)]
+        dv2_spec=[50, 500, int((500-50)/50+1)]
+        dv1=records[0][:trial_idx]
+        dv2=records[1][:trial_idx]
+        est=records[2][:trial_idx]
+        result, pMean, pStd, lml = gpal_optimize2D(gpr, dv1, dv2, est, dv1_spec, dv2_spec, mask, return_std, return_cov)
+        number=int(result[0].item())
+        max_number=int(result[1].item())
 
-    for i in range(num_trials):
-        max_number_candidates = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
-        if i==0:
-            max_number = random.choice(max_number_candidates)
-            number = random.randint(5, max_number)  # 5이상 상한선 미만 임의의 숫자 선택 (would be changed later)
-        else:
-            number, max_number, pMean, pStd, lml = gpal_optimize(gpr, records[0], records[1], records[2], return_std, return_cov)
-        
-        dot_size = 4 if not size_control else calculate_dot_size(max_number_size=4, number=number, max_number=max_number)
-        res = trial(number, dot_size, max_number=max_number)
-        
-        res[0]['size_control'] = 1 if size_control else 0
-        records[0][i]=res[0]['given_number']
-        records[1][i]=res[0]['upperbound']
-        records[2][i]=res[0]['estimation']
-        res[0]['posterior_mean'] = pMean
-        res[0]['posterior_std'] = pStd
-        res[0]['log_marginal_likelihood'] = lml
-        block_res.extend(res)
-        event.waitKeys(keyList=['space'])
-
-    return block_res
-
-def run_experiment(args, gpr, subject_id):
-
-    #parser = argparse.ArgumentParser(description='Run the Number Line Estimation Experiment')
-    random.seed(args.seed)
+    dot_size = 4 if not size_control else calculate_dot_size(max_number_size=4, number=number, max_number=max_number)
+    #print(f"number: {number}")
+    print(f"max_number: {max_number}")
+    print(f"dot_size: {dot_size}")
+    res = trial(number, dot_size, visuals, max_number=max_number)
     
-    sbj=args.subject_prefix+str(subject_id)
-    save_models_sbj_dir=args.save_models_dir+'/'+sbj  # The directory to save the optimized model for each subject
-    os.makedirs(save_models_sbj_dir, exist_ok=True)
-    
-    # Collect participant information
-    info = collect_participant_info()
-    print(f"Participant Info: {info}")
+    res[0]['size_control'] = 1 if size_control else 0
+    records[0][trial_idx]=res[0]['given_number']
+    records[1][trial_idx]=res[0]['upper_bound']
+    records[2][trial_idx]=res[0]['estimation']
+    res[0]['posterior_mean'] = pMean
+    res[0]['posterior_std'] = pStd
+    res[0]['log_marginal_likelihood'] = lml
+    #block_res.extend(res)
+    event.waitKeys(keyList=['space'])
 
-    # Create a window
-    win = visual.Window([1800, 1200], color='grey', units='pix', fullscr=True)
-    line = visual.Line(win, start=(-500, 0), end=(500, 0), lineColor='black')
-    line_leftend = visual.Line(win, start=(-500, -10), end=(-500, 10), lineColor='black')
-    line_rightend = visual.Line(win, start=(500, -10), end=(500, 10), lineColor='black')
-    left_label = visual.Rect(win, width=300, height=250, pos=(-500, -150), fillColor=None, lineColor='black')
-    right_label = visual.Rect(win, width=300, height=250, pos=(500, -150), fillColor=None, lineColor='black')
-    question_label = visual.Rect(win, width=300, height=250, pos=(0, 150), fillColor=None, lineColor='black')
+    return res
 
-    prompt = visual.TextStim(win, text='', pos=(0, -400), color='black')
-    marker = visual.Line(win, start=(0, -10), end=(0, 10), lineColor='orange', lineWidth=3)
 
-    # masking image
-    img_stim = visual.ImageStim(
-        win=win,
-        image='./nlt_main/images/random_noise.png',
-        pos=(0, 150),
-        size=(300, 250)
-    )
-    show_instructions()
+def run_experiment(args, gpr, visuals, info):
 
-    ## record_array[0][i] : Given number in i-th trial.
-    ## record_array[1][i] : Upper bound in i-th trial.
-    ## record_array[2][i] : Given number estimate in i-th trial.
+    show_instructions(visuals)
+
     num_trials = args.n_trials 
-    record_array=np.zeros((3, num_trials))
+    record_array_pre=np.zeros((3, 5))
 
 
     # Run the pre-NLE block (test trials)
-    results = run_NLE_block(gpr, record_array, 5, return_std=args.return_std, return_cov=args.return_cov) # for 5 test trials
+    for preIdx in range(5):
+        results = run_NLE_block(gpr, record_array_pre, 0, visuals, return_std=args.return_std, return_cov=args.return_cov) # for 5 test trials
 
     # Run the NLE block
+    block_res = []
+    record_array=np.zeros((3, num_trials*2))
     size_control_list = [True]*num_trials + [False]*num_trials  # Second block with variable dot size
     random.shuffle(size_control_list)  # Shuffle the order of blocks
 
-    for size_control_flag in size_control_list:
+    for idx, size_control_flag in enumerate(size_control_list):
         if size_control_flag:
-            results.extend(run_NLE_block(gpr, record_array, 1, args.return_std, args.return_cov, size_control=True))  # Second block with variable dot size
+            results=run_NLE_block(gpr, record_array, idx, visuals, args.return_std, args.return_cov, size_control=True)  # Second block with variable dot size
         else:
-            results.extend(run_NLE_block(gpr, record_array, 1, args.return_std, args.return_cov))
+            results=run_NLE_block(gpr, record_array, idx, visuals, args.return_std, args.return_cov)
+        block_res.extend(results) 
 
     # Save the results to a CSV file
     filename = f"results_{info['Participant ID']}_{info['Name']}.csv"
-    save_results(args.save_results_dir, results, info, filename=filename)
+    save_results(args.save_results_dir, block_res, info, filename=filename)
 
-    filepath=os.path.join(save_models_sbj_dir, f'/GPR_{info['Participant ID']}_{info['Name']}_{info['timestamp']}.pkl')
+    sbj=args.subject_prefix+f"_{info['Participant ID']}_{info['Name']}"
+    save_models_sbj_dir=args.save_models_dir+'/'+sbj  # The directory to save the optimized model for each subject
+
+    if not os.path.exists(save_models_sbj_dir):
+        os.mkdir(save_models_sbj_dir)
+    filepath=f"{save_models_sbj_dir}/GPR_{info['Participant ID']}_{info['Name']}.pkl"
     with open(filepath, "wb") as f:
         pickle.dump(gpr, f)
+    
 
     print("Experiment completed. Results saved.")
 
+    win=visuals['win']
     win.close()
     core.quit()
 

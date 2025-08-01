@@ -16,12 +16,12 @@ from psychopy import logging
 logging.console.setLevel(logging.ERROR)
 
 
-from nlt.gpal.argparser import argparser
-from nlt.gpal.gpr_instance import *
-from nlt.gpal.utils import prediction, argsConstructor, plotStdInterval, plotEstim3D, plotFreq3D
-from nlt.nlt_main.utils.utils import collect_participant_info, save_results
-from nlt.nlt_main.NLE.draw_dots import draw_grid_position, calculate_dot_size
-from nlt.nlt_main.main import *
+from gpal.argparser import argparser
+from gpal.gpr_instance import *
+from gpal.utils import argsConstructor, plotStd2D, plotEstim3D, plotFreq3D
+from nlt_main.utils.utils import collect_participant_info
+#from nlt_main.NLE.draw_dots import draw_grid_position, calculate_dot_size
+from nlt_main.main import run_experiment
 
 os.environ["CUDA_VISIBLE_DEVICES"] = '2'  # Specifying the GPU to use
 
@@ -47,22 +47,22 @@ if __name__=="__main__":
     ########################################### Modify these values ######################################
     ######################################################################################################
 
-    subject_id='0'                                      # subject ID
+    #subject_id='0'                                      # subject ID
 
-    args.n_trials=45                            # Number of experiment trials for a subject
+    args.n_trials=45                           # Number of experiment trials for a subject
     args.seed=211                               # A random seed value for reproducibility
-    
+    args.n_DVs=2
     ## Arguments related to initializing the GPR instance.
 
-    args.n_kernels=2                            # The number of individual kernels to be combined. Should be a positive integer.
+    args.n_kernels=2                             # The number of individual kernels to be combined. Should be a positive integer.
     args.alpha=1e-10                            # A value added to the diagonal of the kernel matrix during fitting.
     args.normalize_y=True                       # A binary mask indicating whether to normalize the target values while fitting.
     args.n_restarts_optimizer=0                 # The number of restarts of the optimizer to find the optimal kernel parameters.
     args.type_kernels_index=[0,6]               # A list of indices of kernels to be combined. Refer to 'kernelTypeDic' above.
     args.parameters_list=[[1.0, 'fixed'],       # A list of list of arguments to be fed to each kernel.
                           [1.0, 'fixed']]
-    args.multiplied_indices=[[0,1]]             # A list of lists indicating the kernels to be multiplied.
-    args.summed_indices=[[]]                    # A list of lists indicating the kernels to be summed.
+    args.multiplied_indices=[[0], [1]]             # A list of lists indicating the kernels to be multiplied.
+    args.summed_indices=[[], []]                    # A list of lists indicating the kernels to be summed.
     args.gpr_random_state=None                  # A parameter determining random number generation in initializing the centers of the GP regressor.
     
     ## Arguments related to optimizing the GPR instance.
@@ -74,12 +74,12 @@ if __name__=="__main__":
     
     ## Arguments related to running an experiment.
 
-    args.save_results_dir='../saved_results'    # A directory to store the task results.
-    args.save_models_dir='../saved_models'      # A directory to store the trained Gaussian process regressor models.
+    args.save_results_dir='results'    # A directory to store the task results.
+    args.save_models_dir='models'      # A directory to store the trained Gaussian process regressor models.
     args.enable_gpu=False                       # A binary mask indicating whether to use GPU.
     args.subject_prefix='Subject'               # A prefix attached to the unique subject ID to construct a full indicator of each subject.
 
-
+ 
     ## Arguments related to plotting
 
     ## Figure 1: Given number estimates and associated standard deviation 
@@ -114,15 +114,47 @@ if __name__=="__main__":
     # warnings.filterwarnings("ignore")
     random.seed(args.seed)
     
-    sbj=args.subject_prefix+str(subject_id)
-    save_models_sbj_dir=args.save_models_dir+'/'+sbj  # The directory to save the optimized model for each subject
-
-    type_kernels, param_dics=argsConstructor(args.n_kernel, args.type_kernels_index, args.parameters_list)
-    #kernelBuilder=KernelBuilder(args.n_kernel, type_kernels, param_dics, args.multiplied_indices, args.summed_indices)
-    #kernel=kernelBuilder.create_compound()
-    kernel, gpr=GPRInstance(args.n_kernel, type_kernels, param_dics, args.multiplied_indices, args.summed_indices, 
+    
+    type_kernels, param_dics=argsConstructor(args.n_kernels, args.type_kernels_index, args.parameters_list)
+    kernel, gpr=GPRInstance(args.n_kernels, type_kernels, param_dics, args.multiplied_indices, args.summed_indices, 
                             alpha=args.alpha, n_restarts_optimizer=args.n_restarts_optimizer, 
                             normalize_y=args.normalize_y, random_state=args.gpr_random_state)
     
-    run_experiment(args, gpr, subject_id)
+    info = collect_participant_info()
+    print(f"Participant Info: {info}")
+
+    # Create a window 
+    win = visual.Window([1800, 1200], color='grey', units='pix', fullscr=False)
+    line = visual.Line(win, start=(-500, 0), end=(500, 0), lineColor='black')
+    line_leftend = visual.Line(win, start=(-500, -10), end=(-500, 10), lineColor='black')
+    line_rightend = visual.Line(win, start=(500, -10), end=(500, 10), lineColor='black')
+    left_label = visual.Rect(win, width=300, height=300, pos=(-500, -150), fillColor=None, lineColor='black')
+    right_label = visual.Rect(win, width=300, height=300, pos=(500, -150), fillColor=None, lineColor='black')
+    question_label = visual.Rect(win, width=300, height=300, pos=(0, 150), fillColor=None, lineColor='black')
+
+    prompt = visual.TextStim(win, text='', pos=(0, -400), color='black')
+    marker = visual.Line(win, start=(0, -10), end=(0, 10), lineColor='orange', lineWidth=3)
+
+    # masking image
+    img_stim = visual.ImageStim(
+        win=win,
+        image='./nlt_main/images/random_noise.png',
+        pos=(0, 150),
+        size=(300, 300)
+    )
+
+    visuals={'win':win,
+            'line':line,
+            'line_leftend':line_leftend,
+            'line_rightend':line_rightend,
+            'left_label':left_label,
+            'right_label':right_label,
+            'question_label':question_label,
+            'prompt':prompt,
+            'marker':marker,
+            'img_stim':img_stim
+            }
+    
+    run_experiment(args, gpr, visuals, info)
+    
     

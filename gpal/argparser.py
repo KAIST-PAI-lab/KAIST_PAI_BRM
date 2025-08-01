@@ -2,11 +2,11 @@ import argparse
 
 def argparser():
     parser = argparse.ArgumentParser(description='Run the Number Line Estimation Experiment.')
-    parser.add_argument('--n_trials', type=int, default=45, help='Number of trials in the NLE block.')
+    parser.add_argument('--n_trials', type=int, default=5, help='Number of trials in the NLE block.')
     parser.add_argument('--seed', type=int, default=42, help='Random seed for reproducibility.')
-    
+    parser.add_argument('--n_DVs', type=int, default=2, help='Number of design variables subject to optimization.')
     ## Arguments related to gpr_instance.py
-    parser.add_argument('--n_kernels',default=1, help='The number of individual kernels to be combined.')
+    parser.add_argument('--n_kernels',default=2, help='The number of individual kernels to be combined.')
     parser.add_argument('--alpha', default=1e-10, help='A value added to the diagonal of the kernel matrix during fitting.')
     parser.add_argument('--normalize_y', default=True, help='A binary mask indicating whether to normalize the target values while fitting.')
     parser.add_argument('--n_restarts_optimizer', default=0, help='The number of restarts of the optimizer to find the optimal kernel parameters.')
