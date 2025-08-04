@@ -1,0 +1,40 @@
+psychometric_function: "mixed_log_linear"
+
+parameter_lists:
+  N_MAX: 100
+  N_TRIALS: 10
+
+  params_mixed_log_linear:
+    param_slope: 1
+    param_intercept: 0
+    param_log_mix: 0.5
+    param_noise: 10 # only in available in the likelihood function
+
+  params_ADO_mixed_log_linear:
+    grid_parameters:
+      param_slope:
+        type: linspace
+        start: 0.5
+        end: 1.5
+        num: 10
+
+      param_intercept:
+        type: linspace
+        start: -10
+        end: 10
+        num: 10
+
+      param_log_mix:
+        type: linspace
+        start: 0.0
+        end: 1.0
+        num: 10
+
+      param_noise:
+        type: geomspace
+        start: 1
+        end: 30
+        num: 10
+
+  one_cyclic_power:
+    beta:
