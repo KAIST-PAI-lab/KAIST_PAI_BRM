@@ -15,6 +15,14 @@ def GPRInstance(nKernel:int, typeKernel:list[str], paramKernel:list[dict], mulId
                 random_state:Optional[Union[int, np.random.RandomState]]=None):
     if not isinstance(alpha, Union[float, np.ndarray]):
         raise TypeError(f"alpha should be float or numpy array: got {type(alpha).__name__}.")
+    if isinstance(alpha, float):
+        if alpha<=0:
+            raise ValueError(f"alpha should be positive.")
+    if isinstance(alpha, np.ndarray):
+        if alpha.dtype!=np.float64:
+            raise TypeError(f"alpha should have a dtype of np.float64.")
+        if not np.all(alpha>0):
+            raise ValueError(f"alpha should contain positive elements.")
     if not isinstance(normalize_y, bool):
         raise TypeError(f"normalize_y should be a bool value.")
     if not isinstance(n_restarts_optimizer, int):

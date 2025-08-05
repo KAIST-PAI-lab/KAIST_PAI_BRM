@@ -105,8 +105,8 @@ def gpal_optimize1D(gpr:GaussianProcessRegressor, dv1:npt.NDArray[np.float64],
         raise TypeError(f"dv1 should be a numpy array.")
     if dv1.dtype!=np.float64:
         raise TypeError(f"dv1 should have a dtype of np.float64.")
-    if dv1.ndim!=1:
-        raise ValueError(f"dv1 should be a 1D array.")
+    if dv1.ndim!=2 or dv1.shape[1]!=1:
+        raise ValueError(f"dv1 should be a 2D numpy array with a single column, got the shape of {dv1.shape}.")
     N=dv1.shape[0]
     if not isinstance(est, np.ndarray):
         raise TypeError(f"est should be a numpy array.")
@@ -134,9 +134,8 @@ def gpal_optimize1D(gpr:GaussianProcessRegressor, dv1:npt.NDArray[np.float64],
 
     dv1_grid=np.linspace(dv1Spec[0], dv1Spec[1], dv1Spec[2])
 
-    mask=masking(dv1_grid)  # Masking the 2D coordinates with a lambda equation
-    dv1_grid_mask=np.where(mask, dv1_grid, np.nan)
-    X_pred=dv1_grid_mask
+    mask=masking(dv1_grid)  # Masking the 1D coordinates with a lambda equation
+    X_pred=np.expand_dims(dv1_grid[mask], -1)
 
     lml=gprFit1D(gpr, X_fit, y_fit)
     pred=gprPredict1D(gpr, X_pred, r_s, r_c)

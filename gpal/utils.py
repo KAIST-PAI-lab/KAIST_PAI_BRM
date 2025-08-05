@@ -268,11 +268,15 @@ def argsConstructor(N:int, kernelTypeIdx:list[int], paramsList:list[list]):
     if not all(isinstance(kti, int) for kti in kernelTypeIdx):
         typ=kernelTypeIdx[[isinstance(kti, int) for kti in kernelTypeIdx].index(False)]
         raise TypeError(f"kernelTypeIdx should contain int values, got {type(typ).__name__ }.")
+    if len(kernelTypeIdx)!=N:
+        raise ValueError(f"kernelTypeIdx should be of length {N}, got {len(kernelTypeIdx)}.")
     if not isinstance(paramsList, list):
         raise TypeError(f"paramsList should be a list, got {type(paramsList).__name__}.")
     if not all(isinstance(pl, list) for pl in paramsList):
         typ=paramsList[[isinstance(pl, list) for pl in paramsList].index(False)]
         raise TypeError(f"paramsList should contain lists, got {type(typ).__name__ }.")
+    if len(paramsList)!=N:
+        raise ValueError(f"paramsList should be of length {N}, got {len([paramsList])}.")
     
     ktiMasks=[kti not in set(kernelTypeDic.keys()) for kti in kernelTypeIdx]
     if any(ktiMasks):

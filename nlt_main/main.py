@@ -19,7 +19,7 @@ logging.console.setLevel(logging.ERROR)
 # Import some functions from utils
 from nlt_main.utils.utils import collect_participant_info, save_results
 from nlt_main.NLE.draw_dots import draw_grid_position, calculate_dot_size
-from gpal.gpal_optimize import gpal_optimize2D
+from gpal.gpal_optimize import gpal_optimize1D
 
 def show_instructions(visuals, text):
     """
@@ -159,7 +159,7 @@ def trial(number, dot_size, visuals, max_number=100):
     return res
 
 
-def run_NLE_block(gpr, records, trial_idx, visuals, return_std=True, return_cov=False, size_control=False):
+def run_NLE_block(gpr, records, block_len, block_idx, trial_idx, visuals, return_std=True, return_cov=False, size_control=False):
     """
     AFTER GPAL has been implemented, this function will run a block of the number line estimation task, using GPAL to optimize the given-number and upperbound number.
 
@@ -171,25 +171,26 @@ def run_NLE_block(gpr, records, trial_idx, visuals, return_std=True, return_cov=
     Run a block of the number line estimation task.
     The first block uses a fixed dot size, while the second block uses variable dot sizes. 
     """
-
+    
+    block_start=block_len*block_idx
     #for i in range(num_trials):
-    max_number_candidates = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
+    max_number_candidates = 500
     if trial_idx==0:
-        max_number = random.choice(max_number_candidates)
+        max_number = 500
         number = random.randint(5, max_number)  # 5이상 상한선 미만 임의의 숫자 선택 (would be changed later)
         pMean=0
         pStd=1
         lml=0
     else:
-        mask=lambda X,Y: X<Y
+        mask=lambda X: X<=500
         dv1_spec=[5, 500, int((500-5)/1+1)]
-        dv2_spec=[50, 500, int((500-50)/50+1)]
-        dv1=records[0][:trial_idx]
-        dv2=records[1][:trial_idx]
-        est=records[2][:trial_idx]
-        result, pMean, pStd, lml = gpal_optimize2D(gpr, dv1, dv2, est, dv1_spec, dv2_spec, mask, return_std, return_cov)
-        number=int(result[0].item())
-        max_number=int(result[1].item())
+
+        dv1=records[0][block_start:block_start+trial_idx]
+        est=records[1][block_start:block_start+trial_idx]
+        dv1=np.expand_dims(dv1, -1)
+        result, pMean, pStd, lml = gpal_optimize1D(gpr, dv1, est, dv1_spec, mask, return_std, return_cov)
+        number=int(result.item())
+        max_number=500
 
     dot_size = 4 if not size_control else calculate_dot_size(max_number_size=4, number=number, max_number=max_number)
     #print(f"number: {number}")
@@ -198,9 +199,8 @@ def run_NLE_block(gpr, records, trial_idx, visuals, return_std=True, return_cov=
     res = trial(number, dot_size, visuals, max_number=max_number)
     
     res[0]['size_control'] = 1 if size_control else 0
-    records[0][trial_idx]=res[0]['given_number']
-    records[1][trial_idx]=res[0]['upper_bound']
-    records[2][trial_idx]=res[0]['estimation']
+    records[0][block_start+trial_idx]=res[0]['given_number']
+    records[1][block_start+trial_idx]=res[0]['estimation']
     res[0]['posterior_mean'] = pMean
     res[0]['posterior_std'] = pStd
     res[0]['log_marginal_likelihood'] = lml
@@ -221,28 +221,32 @@ def run_experiment(args, gpr, visuals, info):
     show_instructions(visuals, intro_text)
 
     num_trials = args.n_trials 
-    record_array_pre=np.zeros((3, 5))
+    block_len=2*num_trials
 
-
+    record_array_pre=np.zeros((2, 5))
     # Run the pre-NLE block (test trials)
     for preIdx in range(5):
-        results = run_NLE_block(gpr, record_array_pre, 0, visuals, return_std=args.return_std, return_cov=args.return_cov) # for 5 test trials
+        results = run_NLE_block(gpr, record_array_pre, block_len, 0, 0, visuals, return_std=args.return_std, return_cov=args.return_cov) # for 5 test trials
 
     test_text = "연습이 종료되었습니다. \n 궁금한 점이 있으시면 질문해주세요. \n 계속 진행하시려면 스페이스바를 누르세요."  
     show_instructions(visuals, test_text)  
 
     # Run the NLE block
-    block_res = []
-    record_array=np.zeros((3, num_trials*2))
-    size_control_list = [True]*num_trials + [False]*num_trials  # Second block with variable dot size
-    random.shuffle(size_control_list)  # Shuffle the order of blocks
+    num_blocks=3
 
-    for idx, size_control_flag in enumerate(size_control_list):
-        if size_control_flag:
-            results=run_NLE_block(gpr, record_array, idx, visuals, args.return_std, args.return_cov, size_control=True)  # Second block with variable dot size
-        else:
-            results=run_NLE_block(gpr, record_array, idx, visuals, args.return_std, args.return_cov)
-        block_res.extend(results) 
+    record_array=np.zeros((2, num_blocks*block_len))
+    block_res = []
+    for bIdx in range(num_blocks):
+
+        size_control_list = [True]*num_trials + [False]*num_trials  # Second block with variable dot size
+        random.shuffle(size_control_list)  # Shuffle the order of blocks
+
+        for idx, size_control_flag in enumerate(size_control_list):
+            if size_control_flag:
+                results=run_NLE_block(gpr, record_array, block_len, bIdx, idx, visuals, args.return_std, args.return_cov, size_control=True)  # Second block with variable dot size
+            else:
+                results=run_NLE_block(gpr, record_array, block_len, bIdx, idx, visuals, args.return_std, args.return_cov)
+            block_res.extend(results) 
 
     # Save the results to a CSV file
     filename = f"results_{info['Participant ID']}_{info['Name']}.csv"

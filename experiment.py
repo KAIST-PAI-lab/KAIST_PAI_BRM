@@ -49,15 +49,15 @@ if __name__=="__main__":
 
     #subject_id='0'                                      # subject ID
 
-    args.n_trials=45                           # Number of experiment trials for a subject
+    args.n_trials=10                           # Number of experiment trials for a subject
     args.seed=211                               # A random seed value for reproducibility
-    args.n_DVs=2
+    args.n_DVs=1 
     ## Arguments related to initializing the GPR instance.
 
     args.n_kernels=2                             # The number of individual kernels to be combined. Should be a positive integer.
     args.alpha=1e-10                            # A value added to the diagonal of the kernel matrix during fitting.
     args.normalize_y=True                       # A binary mask indicating whether to normalize the target values while fitting.
-    args.n_restarts_optimizer=0                 # The number of restarts of the optimizer to find the optimal kernel parameters.
+    args.n_restarts_optimizer=0                  # The number of restarts of the optimizer to find the optimal kernel parameters.
     args.type_kernels_index=[0,6]               # A list of indices of kernels to be combined. Refer to 'kernelTypeDic' above.
     args.parameters_list=[[1.0, 'fixed'],       # A list of list of arguments to be fed to each kernel.
                           [1.0, 'fixed']]
@@ -79,29 +79,6 @@ if __name__=="__main__":
     args.enable_gpu=False                       # A binary mask indicating whether to use GPU.
     args.subject_prefix='Subject'               # A prefix attached to the unique subject ID to construct a full indicator of each subject.
 
- 
-    ## Arguments related to plotting
-
-    ## Figure 1: Given number estimates and associated standard deviation 
-    args.figure_size_1=(8,6)                    # The size of the figure #1.
-    args.label_x_1='Given Number'               # A label for the x-axis of the figure #1.
-    args.label_y_1='Number Estimate'            # A label for the y-axis of the figure #1.
-    args.title_1='Given Number Estimates (2D)'  # A title of the figure #1.
-    args.sigma_coef_1=1.0                       # A coefficient multiplied to the standard deviation, determining the range of uncertainty to be plotted.
-
-    ## Figure 2: 3D plot of given number estimates for 2D number line task.
-    args.figure_size_2=(8,6)                    # The size of the figure #2.
-    args.label_x_2='Given Number'               # A label for the x-axis of the figure #2.
-    args.label_y_2='Upper Bound'                # A label for the y-axis of the figure #2.
-    args.label_z_2='Given Number Estimates'     # A label for the z-axis of the figure #2.
-    args.title_2='Given Number Estimates (3D)'  # A title of the figure #2.
-    
-    ## Figure 3: A histogram illustrating the frequencies each design was selected by the optimization algorithm.
-    args.figure_size_3=(8,6)                    # The size of the figure #3.
-    args.label_x_3='Given Number'               # A label for the x-axis of the figure #3.
-    args.label_y_3='Upper Bound'                # A label for the y-axis of the figure #3.
-    args.label_z_3='Frequency'     # A label for the z-axis of the figure #3.
-    args.title_3='Design Selection Frequencies'  # A title of the figure #3.
 
 
     ## Arguments related to ADO optimization.
