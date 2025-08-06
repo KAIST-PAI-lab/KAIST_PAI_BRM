@@ -22,7 +22,7 @@ from nlt_main.NLE.draw_dots import draw_grid_position, calculate_dot_size
 from gpal.gpal_optimize import gpal_optimize
 
 # Import ADO functions
-from ADO.ado import log_likelihood, generate_grid_params, generate_grid_designs, generate_grid_response
+from ado.ado import log_likelihood, generate_grid_params, generate_grid_designs, generate_grid_response
 from adopy import Task, Model, Engine
 
 def show_instructions(visuals, text):
