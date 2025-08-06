@@ -1,14 +1,39 @@
-psychometric_function: "mixed_log_linear"
+true_function: "one_cyclic_power"
+
+assumed_function: "one_cyclic_power"
+
+# "mixed_log_linear" or "one_cyclic_power"
+
+functions_list:
+  ["mixed_log_linear", "one_cyclic_power", "linear", "exponential"]
 
 parameter_lists:
   N_MAX: 100
-  N_TRIALS: 10
+  N_TRIALS: 50
 
+  # mixed log linear model
   params_mixed_log_linear:
     param_slope: 1
     param_intercept: 0
     param_log_mix: 0.5
-    param_noise: 10 # only in available in the likelihood function
+    param_noise: 10 # only available in the likelihood function
+
+  params_optimize_mixed_log_linear:
+    param_slope_initial: 1
+    param_slope_range_start: 0.5
+    param_slope_range_end: 1.5
+
+    param_intercept_initial: 0
+    param_intercept_range_start: -10
+    param_intercept_range_end: 10
+
+    param_log_mix_initial: 0.5
+    param_log_mix_range_start: 0.0
+    param_log_mix_range_end: 1.0
+
+    param_noise_initial: 10
+    param_noise_range_start: 1
+    param_noise_range_end: 30
 
   params_ADO_mixed_log_linear:
     grid_parameters:
@@ -36,5 +61,70 @@ parameter_lists:
         end: 30
         num: 10
 
-  one_cyclic_power:
-    beta:
+  # one cyclic power model
+  params_one_cyclic_power:
+    param_exponent: 0.5
+    param_noise: 10 # only in available in the likelihood function
+
+  params_optimize_one_cyclic_power:
+    param_exponent_initial: 1
+    param_exponent_range_start: 0.1
+    param_exponent_range_end: 2
+
+    param_noise_initial: 10
+    param_noise_range_start: 1
+    param_noise_range_end: 30
+
+  params_ADO_one_cyclic_power:
+    grid_parameters:
+      param_exponent:
+        type: linspace
+        start: 0.1
+        end: 2
+        num: 100
+      param_noise:
+        type: geomspace
+        start: 1
+        end: 30
+        num: 100
+
+  # two cyclic power model
+  params_two_cyclic_power:
+    param_exponent_left: 1
+    param_exponent_right: 1
+    param_noise: 10 # only in available in the likelihood function
+
+  params_optimize_two_cyclic_power:
+    param_exponent_left_initial: 1
+    param_exponent_left_range_start: 0.5
+    param_exponent_left_range_end: 1.5
+
+    param_exponent_right_initial: 1
+    param_exponent_right_range_start: 0.5
+    param_exponent_right_range_end: 1.5
+
+    param_noise_initial: 10
+    param_noise_range_start: 1
+    param_noise_range_end: 30
+
+  params_ADO_two_cyclic_power:
+    grid_parameters:
+      param_exponent_left:
+        type: linspace
+        start: 0.5
+        end: 1.5
+        num: 10
+      param_exponent_right:
+        type: linspace
+        start: 0.5
+        end: 1.5
+        num: 10
+      param_noise:
+        type: geomspace
+        start: 1
+        end: 30
+        num: 10
+
+  params_linear_model:
+    param_slope:
+    param_intercept:
