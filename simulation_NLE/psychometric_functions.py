@@ -189,8 +189,7 @@ def two_cyclic_power_generate_response(
 
 
 def linear(param_slope, param_intercept, given_number):
-    y_pred = param_slope * given_number + param_intercept
-    return y_pred
+    return param_slope * given_number + param_intercept
 
 
 def linear_likelihood(
@@ -210,14 +209,14 @@ def linear_likelihood(
 def linear_likelihood_scipy_minimize(parameters, given_number, simulated_estimate):
     param_slope, param_intercept, param_noise = (
         parameters[0],
-        parameter[1],
+        parameters[1],
         parameters[2],
     )
 
     y_pred = linear(param_slope, param_intercept, given_number)
 
     L = (
-        np.log()
+        np.log(param_noise)
         + 0.5 * np.log(2 * np.pi)
         + ((simulated_estimate - y_pred) ** 2) / (2 * param_noise**2)
     )
