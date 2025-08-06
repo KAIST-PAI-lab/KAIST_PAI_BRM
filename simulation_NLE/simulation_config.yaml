@@ -8,7 +8,7 @@ functions_list:
   ["mixed_log_linear", "one_cyclic_power", "linear", "exponential"]
 
 parameter_lists:
-  N_MAX: 100
+  N_MAX: 500
   N_TRIALS: 50
 
   # mixed log linear model
@@ -125,6 +125,76 @@ parameter_lists:
         end: 30
         num: 10
 
-  params_linear_model:
-    param_slope:
-    param_intercept:
+  # Linear Moel
+  params_linear:
+    param_slope: 1
+    param_intercept: 0
+    param_noise: 10
+
+  params_optimize_linear:
+    param_slope_initial: 1
+    param_slope_start: 0.1
+    param_slope_end: 2
+
+    param_intercept_initial: 1
+    param_intercept_range_start: 0.5
+    param_intercept_range_end: 1.5
+
+  params_ADO_linear:
+    grid_parameters:
+      param_slope:
+        type: linspace
+        start: 0.5
+        end: 1.5
+        num: 10
+
+      param_intercept:
+        type: linspace
+        start: -10
+        end: 10
+        num: 10
+
+      param_noise:
+        type: geomspace
+        start: 1
+        end: 30
+        num: 10
+
+  # Exponential Model
+  params_exponential:
+    param_rate: 1
+    param_intercept: 0
+    param_noise: 10
+
+  params_optimize_exponential:
+    param_rate_initial: 1
+    param_rate_start: 0.5
+    param_rate_end: 1.5
+
+    param_intercept_initial: 1
+    param_intercept_range_start: 0.5
+    param_intercept_range_end: 1.5
+
+    param_noise_initial: 10
+    param_noise_range_start: 1
+    param_noise_range_end: 30
+
+  params_ADO_exponential:
+    grid_parameters:
+      param_rate:
+        type: linspace
+        start: 0.5
+        end: 1.5
+        num: 10
+
+      param_intercept:
+        type: linspace
+        start: -10
+        end: 10
+        num: 10
+
+      param_noise:
+        type: geomspace
+        start: 1
+        end: 30
+        num: 10

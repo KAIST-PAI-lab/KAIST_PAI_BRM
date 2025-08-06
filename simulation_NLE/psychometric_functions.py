@@ -172,67 +172,6 @@ def one_cyclic_power_generate_response(param_exponent, param_noise, given_number
     return response
 
 
-def two_cyclic_power(param_exponent_left, param_exponent_right, given_number):
-    number_estimate = N_MAX * (
-        (given_number**param_exponent_left)
-        / (
-            given_number**param_exponent_left
-            + (N_MAX - given_number) ** param_exponent_right
-        )
-    )
-    return number_estimate
-
-
-def two_cyclic_power_likelihood(
-    param_exponent_left,
-    param_exponent_right,
-    param_noise,
-    given_number,
-    simulated_estimate,
-):
-    number_estimate = N_MAX * (
-        (given_number**param_exponent_left)
-        / (
-            given_number**param_exponent_left
-            + (N_MAX - given_number) ** param_exponent_right
-        )
-    )
-
-    L = (
-        np.log(param_noise)
-        + 0.5 * np.log(2 * np.pi)
-        + ((simulated_estimate - number_estimate) ** 2) / (2 * param_noise**2)
-    )
-
-    return -L
-
-
-def two_cyclic_power_likelihood_scipy_minimize(
-    parameters, given_number, simulated_estimate
-):
-    param_exponent_left, param_exponent_right, param_noise = (
-        parameters[0],
-        parameters[1],
-        parameters[2],
-    )
-
-    number_estimate = N_MAX * (
-        (given_number**param_exponent_left)
-        / (
-            given_number**param_exponent_left
-            + (N_MAX - given_number) ** param_exponent_right
-        )
-    )
-
-    L = np.sum(
-        np.log(param_noise)
-        + 0.5 * np.log(2 * np.pi)
-        + ((simulated_estimate - number_estimate) ** 2) / (2 * param_noise**2)
-    )
-
-    return L
-
-
 def two_cyclic_power_generate_response(
     param_exponent_left, param_exponent_right, param_noise, given_number
 ):
@@ -244,7 +183,94 @@ def two_cyclic_power_generate_response(
         )
     )
 
-    # noise 추가 (정규분포)
+    response = np.random.normal(loc=pred, scale=param_noise)
+    response = np.clip(response, 0, N_MAX)
+    return response
+
+
+def linear(param_slope, param_intercept, given_number):
+    y_pred = param_slope * given_number + param_intercept
+    return y_pred
+
+
+def linear_likelihood(
+    param_slope, param_intercept, param_noise, given_number, simulated_estimate
+):
+    y_pred = linear(param_slope, param_intercept, given_number)
+
+    L = (
+        np.log(param_noise)
+        + 0.5 * np.log(2 * np.pi)
+        + ((simulated_estimate - y_pred) ** 2) / (2 * param_noise**2)
+    )
+
+    return -L
+
+
+def linear_likelihood_scipy_minimize(parameters, given_number, simulated_estimate):
+    param_slope, param_intercept, param_noise = (
+        parameters[0],
+        parameter[1],
+        parameters[2],
+    )
+
+    y_pred = linear(param_slope, param_intercept, given_number)
+
+    L = (
+        np.log()
+        + 0.5 * np.log(2 * np.pi)
+        + ((simulated_estimate - y_pred) ** 2) / (2 * param_noise**2)
+    )
+
+    return -L
+
+
+def linear_generate_response(param_slope, param_intercept, param_noise, given_number):
+    pred = param_slope * given_number + param_intercept
+    response = np.random.normal(loc=pred, scale=param_noise)
+    response = np.clip(response, 0, N_MAX)
+    return response
+
+
+def exponential(param_rate, param_intercept, given_number):
+    return np.exp(param_rate * given_number) + param_intercept
+
+
+def exponential_likelihood(
+    param_rate,
+    param_intercept,
+    param_noise,
+    given_number,
+    simulated_estimate,
+):
+    y_pred = exponential(param_rate, param_intercept, given_number)
+
+    L = (
+        np.log(param_noise)
+        + 0.5 * np.log(2 * np.pi)
+        + ((simulated_estimate - y_pred) ** 2) / (2 * param_noise**2)
+    )
+    return -L
+
+
+def exponential_likelihood_scipy_minimize(parameters, given_number, simulated_estimate):
+
+    param_rate, param_intercept, param_noise = parameters
+
+    y_pred = exponential(param_rate, param_intercept, given_number)
+
+    L = (
+        np.log(param_noise)
+        + 0.5 * np.log(2 * np.pi)
+        + ((simulated_estimate - y_pred) ** 2) / (2 * param_noise**2)
+    )
+    return L
+
+
+def exponential_generate_response(
+    param_rate, param_intercept, param_noise, given_number
+):
+    pred = exponential(param_rate, param_intercept, given_number)
     response = np.random.normal(loc=pred, scale=param_noise)
     response = np.clip(response, 0, N_MAX)
     return response
