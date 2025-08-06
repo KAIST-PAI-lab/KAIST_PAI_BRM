@@ -5,6 +5,7 @@ import warnings
 import random
 import pandas as pd
 import pickle
+import yaml
 from datetime import datetime
 from sklearn.gaussian_process import GaussianProcessRegressor
 
@@ -16,9 +17,8 @@ from psychopy import logging
 logging.console.setLevel(logging.ERROR)
 
 
-from gpal.argparser import argparser
 from gpal.gpr_instance import *
-from gpal.utils import argsConstructor, plotStd2D, plotEstim3D, plotFreq3D
+from gpal.utils import argsConstructor
 from nlt_main.utils.utils import collect_participant_info
 #from nlt_main.NLE.draw_dots import draw_grid_position, calculate_dot_size
 from nlt_main.main import run_experiment
@@ -30,72 +30,57 @@ os.environ["CUDA_VISIBLE_DEVICES"] = '2'  # Specifying the GPU to use
 
 if __name__=="__main__":
 
-    args=argparser()
+    try:
+        with open('gpal/config.yaml', 'r') as file:
+            config=yaml.safe_load(file)
+        
+        print("Configuration loaded.")
 
-    ## kernelTypeDic={0:'ConstantKernel', 
-    ##                1:'DotProduct', 
-    ##                2:'ExpSineSquared', 
-    ##                3:'Exponentiation',
-    ##                4:'Matern', 
-    ##                5:'PairwiseKernel', 
-    ##                6:'RBF', 
-    ##                7:'RationalQuadratic', 
-    ##                8:'WhiteKernel'}
+    except FileNotFoundError:
+        print("config.yaml file cannot be found.")
+    
+    
+    ## Arguments related to the experimental environment
+    n_trials=config.get('n_trials')                             # Number of experiment trials for a subject.
+    seed=config.get('seed')                                     # A random seed value for reproducibility.
+    n_DVs=config.get('n_DVs')                                   # The number of design variables subject to optimization.
 
-
-    ######################################################################################################
-    ########################################### Modify these values ######################################
-    ######################################################################################################
-
-    #subject_id='0'                                      # subject ID
-
-    args.n_trials=10                           # Number of experiment trials for a subject
-    args.seed=211                               # A random seed value for reproducibility
-    args.n_DVs=1 
+    
     ## Arguments related to initializing the GPR instance.
-
-    args.n_kernels=2                             # The number of individual kernels to be combined. Should be a positive integer.
-    args.alpha=1e-10                            # A value added to the diagonal of the kernel matrix during fitting.
-    args.normalize_y=True                       # A binary mask indicating whether to normalize the target values while fitting.
-    args.n_restarts_optimizer=0                  # The number of restarts of the optimizer to find the optimal kernel parameters.
-    args.type_kernels_index=[0,6]               # A list of indices of kernels to be combined. Refer to 'kernelTypeDic' above.
-    args.parameters_list=[[1.0, 'fixed'],       # A list of list of arguments to be fed to each kernel.
-                          [1.0, 'fixed']]
-    args.multiplied_indices=[[0], [1]]             # A list of lists indicating the kernels to be multiplied.
-    args.summed_indices=[[], []]                    # A list of lists indicating the kernels to be summed.
-    args.gpr_random_state=None                  # A parameter determining random number generation in initializing the centers of the GP regressor.
+    n_kernels=config.get('n_kernels')                           # The number of individual kernels to be combined. Should be a positive integer.
+    alpha=config.get('alpha')                                   # A value added to the diagonal of the kernel matrix during fitting.
+    normalize_y=config.get('normalize_y')                       # A binary mask indicating whether to normalize the target values while fitting.
+    n_restarts_optimizer=config.get('n_restarts_optimizer')     # The number of restarts of the optimizer to find the optimal kernel parameters.
+    type_kernels_index=config.get('type_kernels_index')         # A list of indices of kernels to be combined. Refer to 'kernelTypeDic' above.
+    parameters_list=config.get('parameters_list')               # A list of list of arguments to be fed to each kernel.
+    multiplied_indices=config.get('multiplied_indices')         # A list of lists indicating the kernels to be multiplied.
+    summed_indices=config.get('summed_indices')                 # A list of lists indicating the kernels to be summed.
+    gpr_random_state=config.get('gpr_random_state')             # A parameter determining random number generation in initializing the centers of the GP regressor.
+    
     
     ## Arguments related to optimizing the GPR instance.
-
-    args.return_std=True                        # A binary mask indicating whether to return standard deviation of posterior distribution at each query value.
-    args.return_cov=False                       # A binary mask indicating whether to return covaraince matrix of posterior distribution at each query value.
-    args.optim_mode='GPAL'                      # Optimization algorithm to use. Should be "GPAL" or "ADO".
-    args.base_model=None                        # A base model for ADO optimization.
+    return_std=config.get('return_std')                         # A binary mask indicating whether to return standard deviation of posterior distribution at each query value.
+    return_cov=config.get('return_cov')                         # A binary mask indicating whether to return covaraince matrix of posterior distribution at each query value.
+    
     
     ## Arguments related to running an experiment.
-
-    args.save_results_dir='results'    # A directory to store the task results.
-    args.save_models_dir='models'      # A directory to store the trained Gaussian process regressor models.
-    args.enable_gpu=False                       # A binary mask indicating whether to use GPU.
-    args.subject_prefix='Subject'               # A prefix attached to the unique subject ID to construct a full indicator of each subject.
+    save_results_dir=config.get('save_results_dir')             # A directory to store the task results.
+    save_models_dir=config.get('save_models_dir')               # A directory to store the trained Gaussian process regressor models.
 
 
+    
 
-    ## Arguments related to ADO optimization.
-
-
-    ######################################################################################################
-    ########################################### Modify these values ######################################
-    ######################################################################################################
-
-    # warnings.filterwarnings("ignore")
-    random.seed(args.seed)
+    warnings.filterwarnings("ignore")
+    random.seed(seed)
     
     
-    type_kernels, param_dics=argsConstructor(args.n_kernels, args.type_kernels_index, args.parameters_list)
-    kernel, gpr=GPRInstance(args.n_kernels, type_kernels, param_dics, args.multiplied_indices, args.summed_indices, 
-                            alpha=args.alpha, n_restarts_optimizer=args.n_restarts_optimizer, 
-                            normalize_y=args.normalize_y, random_state=args.gpr_random_state)
+    type_kernels, param_dics=argsConstructor(N=n_kernels, 
+                                             kernelTypeIdx=type_kernels_index, 
+                                             paramsList=parameters_list)
+    kernel, gpr=GPRInstance(nKernel=n_kernels, typeKernel=type_kernels, paramKernel=param_dics, 
+                            mulIdx=multiplied_indices, sumIdx=summed_indices, 
+                            alpha=alpha, n_restarts_optimizer=n_restarts_optimizer, 
+                            normalize_y=normalize_y, random_state=gpr_random_state)
     
     info = collect_participant_info()
     print(f"Participant Info: {info}")
@@ -130,8 +115,8 @@ if __name__=="__main__":
             'prompt':prompt,
             'marker':marker,
             'img_stim':img_stim
-            }
+            } 
     
-    run_experiment(args, gpr, visuals, info)
+    run_experiment(config, gpr, visuals, info)
     
     

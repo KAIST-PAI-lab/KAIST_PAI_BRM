@@ -23,22 +23,22 @@ from gpal.utils import *
 
 def gpal_optimize2D(gpr:GaussianProcessRegressor, dv1:npt.NDArray[np.float64], dv2:npt.NDArray[np.float64], 
                   est:npt.NDArray[np.float64], dv1Spec:list, dv2Spec:list, 
-                  masking:Callable, r_s: bool, r_c:bool):
+                  masking:Callable, r_s: bool = True, r_c:bool = False):
     if not isinstance(gpr, GaussianProcessRegressor):
         raise TypeError(f"gpr should be a GaussianProcessRegressor instance, got {type(gpr).__name__}.")
     if not isinstance(dv1, np.ndarray):
         raise TypeError(f"dv1 should be a numpy array.")
     if dv1.dtype!=np.float64:
         raise TypeError(f"dv1 should have a dtype of np.float64.")
-    if dv1.ndim!=1:
-        raise ValueError(f"dv1 should be a 1D array.")
+    if dv1.ndim!=2 or dv1.shape[1]!=1:
+        raise ValueError(f"dv1 should be a 2D array with a single column, got the shape of {dv1.shape}.")
     N=dv1.shape[0]
     if not isinstance(dv2, np.ndarray):
         raise TypeError(f"dv2 should be a numpy array.")
     if dv2.dtype!=np.float64:
         raise TypeError(f"dv2 should have a dtype of np.float64.")
-    if dv2.ndim!=1:
-        raise ValueError(f"dv2 should be a 1D array.")
+    if dv2.ndim!=2 or dv2.shape[1]!=1:
+        raise ValueError(f"dv2 should be a 2D array with a single column, got the shape fo {dv2.shape}.")
     if dv2.shape[0]!=N:
         raise ValueError(f"dv2 should be of length {N}, got {dv2.shape[0]}.")
     if not isinstance(est, np.ndarray):
@@ -98,7 +98,7 @@ def gpal_optimize2D(gpr:GaussianProcessRegressor, dv1:npt.NDArray[np.float64], d
 
 def gpal_optimize1D(gpr:GaussianProcessRegressor, dv1:npt.NDArray[np.float64], 
                   est:npt.NDArray[np.float64], dv1Spec:list,
-                  masking:Callable, r_s: bool, r_c:bool):
+                  masking:Callable, r_s: bool = True, r_c:bool = False):
     if not isinstance(gpr, GaussianProcessRegressor):
         raise TypeError(f"gpr should be a GaussianProcessRegressor instance, got {type(gpr).__name__}.")
     if not isinstance(dv1, np.ndarray):

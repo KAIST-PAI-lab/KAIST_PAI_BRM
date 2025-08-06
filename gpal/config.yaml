@@ -1,22 +1,37 @@
-n_trials: 45
-n_DVs: 2
+## Arguments related to the experimental environment
 
-GPR:
-  n_kernels: 2
-  alpha: 1e-10
-  normalize_y: True
-  n_restarts_optimizer: 0
-  type_kernels_index: [0,6]
-  parameters_list: [[1.0, 'fixed'],[1.0, 'fixed']]
-  multiplied_indices: [[0], [1]]
-  summed_indices: [[], []]
-  gpr_random_state: None
+n_trials: 10                      # Number of experiment trials for a subject.            
+seed: 0                           # A random seed value for reproducibility.
+n_DVs: 1                          # The number of design variables subject to optimization.
 
-GPAL:
-  return_std: True
-  return_cov: False
-  save_results_dir: 'results'
-  save_models_dir: 'models'
+
+
+## Arguments related to initializing the GPR instance.
+
+n_kernels: 2                      # The number of individual kernels to be combined. Should be a positive integer.
+alpha: 0.000001                      # A value added to the diagonal of the kernel matrix during fitting.
+normalize_y: True                 # A binary mask indicating whether to normalize the target values while fitting.
+n_restarts_optimizer: 0           # The number of restarts of the optimizer to find the optimal kernel parameters.
+type_kernels_index: [0,6]         # A list of indices of kernels to be combined. Refer to 'kernelTypeDic' above.
+parameters_list: [[1.0, 'fixed'], # A list of list of arguments to be fed to each kernel.
+                  [1.0, 'fixed']]
+multiplied_indices: [[0], [1]]    # A list of lists indicating the kernels to be multiplied.
+summed_indices: [[], []]          # A list of lists indicating the kernels to be summed.
+gpr_random_state: null            # A parameter determining random number generation in initializing the centers of the GP regressor.
+
+
+
+## Arguments related to optimizing the GPR instance.
+
+return_std: True                  # A binary mask indicating whether to return standard deviation of posterior distribution at each query value.
+return_cov: False                 # A binary mask indicating whether to return covaraince matrix of posterior distribution at each query value.
+
+
+
+## Arguments related to running an experiment.
+
+save_results_dir: 'results'       # A directory to store the task results.
+save_models_dir: 'models'         # A directory to store the trained Gaussian process regressor models.
 
 
 

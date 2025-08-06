@@ -160,24 +160,13 @@ def trial(number, dot_size, visuals, max_number=100):
 
 
 def run_NLE_block(gpr, records, block_len, block_idx, trial_idx, visuals, return_std=True, return_cov=False, size_control=False):
-    """
-    AFTER GPAL has been implemented, this function will run a block of the number line estimation task, using GPAL to optimize the given-number and upperbound number.
-
-    if i == 0:
-        num, max_num = random.sample(range(1, 101), 2) # 임의의 숫자 두개
-    else:
-        num, max_num = GPAL.GPAL(results[-1]['response'], results[-1]['max_number']) # 가장 최근 응답과 상한선을 기반으로 숫자 선택
-    
-    Run a block of the number line estimation task.
-    The first block uses a fixed dot size, while the second block uses variable dot sizes. 
-    """
     
     block_start=block_len*block_idx
-    #for i in range(num_trials):
-    max_number_candidates = 500
+    
+    #max_number_candidates = 500
     if trial_idx==0:
         max_number = 500
-        number = random.randint(5, max_number)  # 5이상 상한선 미만 임의의 숫자 선택 (would be changed later)
+        number = random.randint(5, max_number)
         pMean=0
         pStd=1
         lml=0
@@ -193,9 +182,7 @@ def run_NLE_block(gpr, records, block_len, block_idx, trial_idx, visuals, return
         max_number=500
 
     dot_size = 4 if not size_control else calculate_dot_size(max_number_size=4, number=number, max_number=max_number)
-    #print(f"number: {number}")
-    # print(f"max_number: {max_number}")
-    # print(f"dot_size: {dot_size}")
+
     res = trial(number, dot_size, visuals, max_number=max_number)
     
     res[0]['size_control'] = 1 if size_control else 0
@@ -210,7 +197,7 @@ def run_NLE_block(gpr, records, block_len, block_idx, trial_idx, visuals, return
     return res
 
 
-def run_experiment(args, gpr, visuals, info):
+def run_experiment(config, gpr, visuals, info):
 
     intro_text = "본 실험에서, 이 작업에는 다음과 같은 숫자 선이 있습니다.\n" \
                 "각 숫자 선의 왼쪽 끝에는 점이 없고 오른쪽 쪽 끝에는 몇 개의 점이 있습니다.\n" \
@@ -220,13 +207,15 @@ def run_experiment(args, gpr, visuals, info):
 
     show_instructions(visuals, intro_text)
 
-    num_trials = args.n_trials 
+    num_trials = config.get('n_trials') 
+    return_std=config.get('return_std')
+    return_cov=config.get('return_cov')
     block_len=2*num_trials
 
     record_array_pre=np.zeros((2, 5))
     # Run the pre-NLE block (test trials)
     for preIdx in range(5):
-        results = run_NLE_block(gpr, record_array_pre, block_len, 0, 0, visuals, return_std=args.return_std, return_cov=args.return_cov) # for 5 test trials
+        results = run_NLE_block(gpr, record_array_pre, block_len, 0, preIdx, visuals, return_std, return_cov) # for 5 test trials
 
     test_text = "연습이 종료되었습니다. \n 궁금한 점이 있으시면 질문해주세요. \n 계속 진행하시려면 스페이스바를 누르세요."  
     show_instructions(visuals, test_text)  
@@ -243,17 +232,19 @@ def run_experiment(args, gpr, visuals, info):
 
         for idx, size_control_flag in enumerate(size_control_list):
             if size_control_flag:
-                results=run_NLE_block(gpr, record_array, block_len, bIdx, idx, visuals, args.return_std, args.return_cov, size_control=True)  # Second block with variable dot size
+                results=run_NLE_block(gpr, record_array, block_len, bIdx, idx, visuals, return_std, return_cov, size_control=True)  # Second block with variable dot size
             else:
-                results=run_NLE_block(gpr, record_array, block_len, bIdx, idx, visuals, args.return_std, args.return_cov)
+                results=run_NLE_block(gpr, record_array, block_len, bIdx, idx, visuals, return_std, return_cov)
             block_res.extend(results) 
 
     # Save the results to a CSV file
     filename = f"results_{info['Participant ID']}_{info['Name']}.csv"
-    save_results(args.save_results_dir, block_res, info, filename=filename)
+    save_results_dir=config.get('save_results_dir')
+    save_results(save_results_dir, block_res, info, filename=filename)
 
-    sbj=args.subject_prefix+f"_{info['Participant ID']}_{info['Name']}"
-    save_models_sbj_dir=args.save_models_dir+'/'+sbj  # The directory to save the optimized model for each subject
+    sbj=f"_{info['Participant ID']}_{info['Name']}"
+    save_models_dir=config.get('save_models_dir')
+    save_models_sbj_dir=save_models_dir+'/'+sbj  # The directory to save the optimized model for each subject
 
     if not os.path.exists(save_models_sbj_dir):
         os.mkdir(save_models_sbj_dir)
