@@ -1,6 +1,6 @@
-true_function: "one_cyclic_power"
+true_function: "mixed_log_linear"
 
-assumed_function: "mixed_log_linear"
+assumed_function: "one_cyclic_power"
 
 # "mixed_log_linear" or "one_cyclic_power"
 
@@ -47,19 +47,19 @@ parameter_lists:
         type: linspace
         start: 0
         end: *N_MAX
-        num: *GRID_RESOLUTION
+        num: 10
 
       param_log_mix:
         type: linspace
         start: 0.0
         end: 1.0
-        num: 20
+        num: 10
 
       param_noise:
-        type: geomspace
+        type: linspace
         start: 1
         end: *N_MAX
-        num: *GRID_RESOLUTION
+        num: 10
 
   # one cyclic power model
   params_one_cyclic_power:
@@ -81,12 +81,12 @@ parameter_lists:
         type: linspace
         start: 0.01
         end: 5
-        num: *GRID_RESOLUTION
+        num: 10
       param_noise:
-        type: geomspace
+        type: linspace
         start: 1
         end: *N_MAX
-        num: *GRID_RESOLUTION
+        num: 10
 
   # two cyclic power model
   params_two_cyclic_power:
