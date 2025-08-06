@@ -87,9 +87,11 @@ for _ in tqdm(range(N_TRIALS)):
     output_variance = 10
 
     ## RBF kernel
-    target_kernel = C(output_variance, constant_value_bounds="fixed") * RBF(
-        length_scale=length_scale, length_scale_bounds="fixed"
-    )
+    # target_kernel = C(output_variance, constant_value_bounds="fixed") * RBF(
+    #     length_scale=length_scale, length_scale_bounds="fixed"
+    # )
+    target_kernel = C(output_variance) * RBF(length_scale=length_scale)
+
     # Fit GP with the selected kernel
     X = np.array(given_number_list).reshape(-1, 1)
     print(X)
@@ -240,7 +242,7 @@ model_names = SIM_CONFIG["function_names"]
 
 BICs = []
 
-colors = ["red", "orange", "blue","purple"]
+colors = ["red", "orange", "blue", "purple"]
 
 x_range = np.linspace(0, N_MAX, N_MAX)
 for n, model_name in enumerate(model_names):
@@ -296,16 +298,16 @@ for n, model_name in enumerate(model_names):
     y_pred = model_standard(*optimized_parameters[:-1], x_range)
 
     plt.plot(x_range, y_pred, color=colors[n], label=f"{model_name}")
-    plt.legend(loc="best")
+
     plt.xlabel("Given Number")
     plt.ylabel("Estimate")
     plt.title("Models fitted to the simulated data")
     plt.grid(True)
 
-y_pred = true_model(**true_params_noiseless, x_range)
+y_pred = true_model(**true_params_noiseless, given_number=x_range)
 
 plt.plot(x_range, y_pred, color=colors[-1], label="True Model")
-
+plt.legend(loc="best")
 plt.scatter(
     x=given_numbers, y=simulated_responses, alpha=0.3, label="Simulated Data Points"
 )
@@ -323,9 +325,10 @@ plt.xticks(rotation=45, ha="right")
 for bar in bars:
     height = bar.get_height()
     plt.text(
-        bar.get_x() + bar.get_width() / 2, 
-        height,                           
-        f"{height:.2f}",                  
-        ha="center", va="bottom",         
-        fontsize=10
+        bar.get_x() + bar.get_width() / 2,
+        height,
+        f"{height:.2f}",
+        ha="center",
+        va="bottom",
+        fontsize=10,
     )
