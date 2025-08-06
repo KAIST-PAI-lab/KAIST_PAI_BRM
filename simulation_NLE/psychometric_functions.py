@@ -113,9 +113,8 @@ def mixed_log_linear_generate_response(
 
 def one_cyclic_power(param_exponent, given_number):
     number_estimate = N_MAX * (
-        given_number
-        * param_exponent
-        / (given_number * param_exponent + (N_MAX - given_number) ** param_exponent)
+        given_number**param_exponent
+        / (given_number**param_exponent + (N_MAX - given_number) ** param_exponent)
     )
 
     return number_estimate
@@ -137,6 +136,40 @@ def one_cyclic_power_likelihood(
     )
 
     return -L
+
+
+def one_cyclic_power_likelihood_scipy_minimize(
+    parameters, given_number, simulated_estimate
+):
+    param_exponent, param_noise = (
+        parameters[0],
+        parameters[1],
+    )
+
+    number_estimate = N_MAX * (
+        given_number**param_exponent
+        / (given_number**param_exponent + (N_MAX - given_number) ** param_exponent)
+    )
+
+    L = np.sum(
+        np.log(param_noise)
+        + 0.5 * np.log(2 * np.pi)
+        + ((simulated_estimate - number_estimate) ** 2) / (2 * param_noise**2)
+    )
+
+    return L
+
+
+def one_cyclic_power_generate_response(param_exponent, param_noise, given_number):
+    pred = N_MAX * (
+        given_number**param_exponent
+        / (given_number**param_exponent + (N_MAX - given_number) ** param_exponent)
+    )
+
+    # noise 추가 (정규분포)
+    response = np.random.normal(loc=pred, scale=param_noise)
+    response = np.clip(response, 0, N_MAX)
+    return response
 
 
 def two_cyclic_power(param_exponent_left, param_exponent_right, given_number):
@@ -172,3 +205,46 @@ def two_cyclic_power_likelihood(
     )
 
     return -L
+
+
+def two_cyclic_power_likelihood_scipy_minimize(
+    parameters, given_number, simulated_estimate
+):
+    param_exponent_left, param_exponent_right, param_noise = (
+        parameters[0],
+        parameters[1],
+        parameters[2],
+    )
+
+    number_estimate = N_MAX * (
+        (given_number**param_exponent_left)
+        / (
+            given_number**param_exponent_left
+            + (N_MAX - given_number) ** param_exponent_right
+        )
+    )
+
+    L = np.sum(
+        np.log(param_noise)
+        + 0.5 * np.log(2 * np.pi)
+        + ((simulated_estimate - number_estimate) ** 2) / (2 * param_noise**2)
+    )
+
+    return L
+
+
+def two_cyclic_power_generate_response(
+    param_exponent_left, param_exponent_right, param_noise, given_number
+):
+    pred = N_MAX * (
+        (given_number**param_exponent_left)
+        / (
+            given_number**param_exponent_left
+            + (N_MAX - given_number) ** param_exponent_right
+        )
+    )
+
+    # noise 추가 (정규분포)
+    response = np.random.normal(loc=pred, scale=param_noise)
+    response = np.clip(response, 0, N_MAX)
+    return response
