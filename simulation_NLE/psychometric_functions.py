@@ -215,7 +215,7 @@ def linear_likelihood_scipy_minimize(parameters, given_number, simulated_estimat
 
     y_pred = linear(param_slope, param_intercept, given_number)
 
-    L = (
+    L = np.sum(
         np.log(param_noise)
         + 0.5 * np.log(2 * np.pi)
         + ((simulated_estimate - y_pred) ** 2) / (2 * param_noise**2)
@@ -255,10 +255,9 @@ def exponential_likelihood(
 def exponential_likelihood_scipy_minimize(parameters, given_number, simulated_estimate):
 
     param_rate, param_intercept, param_noise = parameters
-
     y_pred = exponential(param_rate, param_intercept, given_number)
 
-    L = (
+    L = np.sum(
         np.log(param_noise)
         + 0.5 * np.log(2 * np.pi)
         + ((simulated_estimate - y_pred) ** 2) / (2 * param_noise**2)
