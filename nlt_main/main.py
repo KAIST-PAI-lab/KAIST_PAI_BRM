@@ -19,7 +19,7 @@ logging.console.setLevel(logging.ERROR)
 # Import some functions from utils
 from nlt_main.utils.utils import collect_participant_info, save_results
 from nlt_main.NLE.draw_dots import draw_grid_position, calculate_dot_size
-from gpal.gpal_optimize import gpal_optimize1D
+from gpal.gpal_optimize import gpal_optimize
 
 def show_instructions(visuals, text):
     """
@@ -163,22 +163,27 @@ def run_NLE_block(gpr, records, block_len, block_idx, trial_idx, visuals, return
     
     block_start=block_len*block_idx
     
-    #max_number_candidates = 500
+    max_number_candidates = [50*i for i in range(1,11)]
     if trial_idx==0:
-        max_number = 500
+        max_number = max_number_candidates[random.randint(0, len(max_number_candidates)-1)]
         number = random.randint(5, max_number)
         pMean=0
         pStd=1
         lml=0
     else:
-        mask=lambda X: X<=500
+        mask=lambda X:X<=500
         dv1_spec=[5, 500, int((500-5)/1+1)]
-
-        dv1=records[0][block_start:block_start+trial_idx]
-        est=records[1][block_start:block_start+trial_idx]
-        dv1=np.expand_dims(dv1, -1)
-        result, pMean, pStd, lml = gpal_optimize1D(gpr, dv1, est, dv1_spec, mask, return_std, return_cov)
-        number=int(result.item())
+        dv_spec=[dv1_spec]
+        dvs=records[:-1, block_start:block_start+trial_idx]
+        print(f"shape: {dvs.shape}")
+        est=records[-1, block_start:block_start+trial_idx]
+        result, pMean, pStd, lml = gpal_optimize(gpr=gpr, 
+                                                 nDV=records.shape[0]-1, 
+                                                 dvs=dvs, 
+                                                 est=est, 
+                                                 dvSpecs=dv_spec, 
+                                                 masking=mask)
+        number=int(result[0].item())
         max_number=500
 
     dot_size = 4 if not size_control else calculate_dot_size(max_number_size=4, number=number, max_number=max_number)
@@ -207,15 +212,16 @@ def run_experiment(config, gpr, visuals, info):
 
     show_instructions(visuals, intro_text)
 
-    num_trials = config.get('n_trials') 
+    num_trials = config.get('n_trials')
+    n_DVs=config.get('n_DVs') 
     return_std=config.get('return_std')
     return_cov=config.get('return_cov')
     block_len=2*num_trials
 
-    record_array_pre=np.zeros((2, 5))
+    record_array_pre=np.zeros((n_DVs+1, 5))
     # Run the pre-NLE block (test trials)
     for preIdx in range(5):
-        results = run_NLE_block(gpr, record_array_pre, block_len, 0, preIdx, visuals, return_std, return_cov) # for 5 test trials
+        results = run_NLE_block(gpr, record_array_pre, block_len, 0, 0, visuals, return_std, return_cov) # for 5 test trials
 
     test_text = "연습이 종료되었습니다. \n 궁금한 점이 있으시면 질문해주세요. \n 계속 진행하시려면 스페이스바를 누르세요."  
     show_instructions(visuals, test_text)  
@@ -223,7 +229,7 @@ def run_experiment(config, gpr, visuals, info):
     # Run the NLE block
     num_blocks=3
 
-    record_array=np.zeros((2, num_blocks*block_len))
+    record_array=np.zeros((n_DVs+1, num_blocks*block_len))
     block_res = []
     for bIdx in range(num_blocks):
 

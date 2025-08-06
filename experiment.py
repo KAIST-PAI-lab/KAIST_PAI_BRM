@@ -71,7 +71,8 @@ if __name__=="__main__":
     
 
     warnings.filterwarnings("ignore")
-    random.seed(seed)
+    if seed is not None:
+        random.seed(seed)
     
     
     type_kernels, param_dics=argsConstructor(N=n_kernels, 

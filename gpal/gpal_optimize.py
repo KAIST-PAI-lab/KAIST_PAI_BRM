@@ -3,22 +3,78 @@ import numpy as np
 from functools import reduce
 from typing import Callable
 import numpy.typing as npt
+import inspect
 from gpal.gpr_fit_predict import *
 #from gpal.gpr_instance import GPRInstance
 from gpal.utils import *
 
 
-## args
-## Nf: The batch size (length in 0-th dimension) of data for fitting
-## Np: The batch size (length in 0-th diemnsion) of data for prediction
-## kti: KernelTypeIndex of argsConstructor
-## pl: paramsList of argsConstructor
-## mi: mulIdx of GPRInstance
-## si: sumIdx of GPRInstance
-## alpha: alpha of GPRInstance
-## n_y: normalize_y of GPRInstance
-## n_r_o: n_restarts_optimizer of GPRInstance
-## r_s: random_state of GPRInstance
+
+def gpal_optimize(gpr:GaussianProcessRegressor, nDV: int, dvs:npt.NDArray[np.float64], 
+                  est:npt.NDArray[np.float64], dvSpecs:list[list], 
+                  masking:Callable, r_s: bool = True, r_c:bool = False):
+    if not isinstance(gpr, GaussianProcessRegressor):
+        raise TypeError(f"gpr should be a GaussianProcessRegressor instance, got {type(gpr).__name__}.")
+    if not isinstance(dvs, np.ndarray):
+        raise TypeError(f"dvs should be a numpy array.")
+    if not isinstance(nDV, int):
+        raise TypeError(f"nDV should be an integer value.")
+    if nDV<1:
+        raise ValueError(f"nDV should be a positive integer.")
+    if dvs.dtype!=np.float64:
+        raise TypeError(f"dvs should have a dtype of np.float64.")
+    if dvs.ndim!=2:
+        raise ValueError(f"dvs should be a 2D array, got the shape of {dvs.shape}.")
+    if dvs.shape[0]!=nDV:
+        raise ValueError(f"dvs should have {nDV} rows; got {dvs.shape[0]} rows.")
+    N=dvs.shape[1]
+    if not isinstance(est, np.ndarray):
+        raise TypeError(f"est should be a numpy array.")
+    if est.dtype!=np.float64:
+        raise TypeError(f"est should have a dtype of np.float64.")
+    if est.ndim!=1:
+        raise ValueError(f"ests should be a 1D array.")
+    if est.shape[0]!=N:
+        raise ValueError(f"ests should be of length {N}, got {est.shape[0]}.")
+    if not isinstance(dvSpecs, list):
+        raise TypeError(f"dvSpecs should be a list.")
+    if not all([isinstance(spec, list) for spec in dvSpecs]):
+        raise TypeError(f"dvSpecs should contain list elements.")
+    if len(dvSpecs)!=nDV:
+        raise ValueError(f"dvSpecs should have {nDV} list elements, got {len(dvSpecs)}.")
+    if not all([isinstance(spec[2], int) for spec in dvSpecs]):
+        raise TypeError(f"The last element of lists in dvSpecs should be an integer value.")
+    if not callable(masking):
+        raise TypeError(f"masking should be a callable function.")
+    numP=len(inspect.signature(masking).parameters)
+    if numP != nDV:
+        raise ValueError(f"masking should have {nDV} parameters, got {numP} parameters")
+    if not isinstance(r_s, bool):
+        raise TypeError(f"r_s should be a bool value, got {type(r_s).__name__}.")
+    if not isinstance(r_c, bool):
+        raise TypeError(f"r_c should be a bool value, got {type(r_c).__name__}.")    
+    
+    X_fit=dvs.T
+    y_fit=est
+
+    dv_cands=[]
+    for i in range(nDV):
+        dv_cands.append(np.linspace(dvSpecs[i][0], dvSpecs[i][1], dvSpecs[i][2]))
+
+    grids=list(np.meshgrid(*dv_cands, indexing='ij'))
+
+
+    coords=np.stack(grids,-1).T
+    mask=masking(*coords)  # Masking the 2D coordinates with a lambda equation
+    X_pred=coords[:,mask].T
+    lml=gprFit(gpr, nDV, X_fit, y_fit)
+    pred=gprPredict(gpr, nDV, X_pred, r_s, r_c)
+    nextX, pMean, pStd=nextDesign(pred, nDV, X_pred)
+
+
+    return nextX, pMean, pStd, lml
+
+
 
 
 def gpal_optimize2D(gpr:GaussianProcessRegressor, dv1:npt.NDArray[np.float64], dv2:npt.NDArray[np.float64], 

@@ -6,6 +6,98 @@ from typing import Optional
 import numpy.typing as npt
 from gpal.utils import prediction
 
+def gprFit(gpr:GaussianProcessRegressor, nDV: int, fitData: npt.NDArray[np.float64], obsData: npt.NDArray[np.float64]):
+    if not isinstance(gpr, GaussianProcessRegressor):
+        raise TypeError(f"gpr should be a GaussianProcessRegressor instance, got {type(gpr).__name__}.")
+    if not isinstance(nDV, int):
+        raise TypeError(f"nDV should be an integer value.")
+    if nDV<1:
+        raise ValueError(f"nDV should be a positive integer.")
+    if not isinstance(fitData, np.ndarray):
+        raise TypeError(f"fitData should be a numpy array.")
+    if fitData.dtype!=np.float64:
+        raise TypeError(f"fitData should have a dtype of np.float64.")
+    if fitData.ndim!=2:
+        raise ValueError(f"fitData should be a 2D numpy array, got {fitData.ndim} dimensions.")
+    N=fitData.shape[0]
+    if fitData.shape[1]!=nDV:
+         raise ValueError(f"fitData should be a 2D numpy array with {nDV} columns, got {fitData.shape[1]} columns.")
+    if not isinstance(obsData, np.ndarray):
+        raise TypeError(f"obsData should be a numpy array.")
+    if obsData.dtype!=np.float64:
+        raise TypeError(f"obsData should have a dtype of np.float64.")
+    if obsData.ndim!=1:
+        raise ValueError(f"obsData should be a 1D numpy array, got {obsData.ndim} dimensions.")
+    if obsData.shape[0]!=N:
+        raise ValueError(f"obsData should be of length {N}, got {obsData.shape[0]}")    
+
+    gpr.fit(fitData, obsData)
+    lml=gpr.log_marginal_likelihood()
+    return lml
+
+
+def gprPredict(gpr:GaussianProcessRegressor, nDV:int, inputData: npt.NDArray[np.float64], returnStd:bool=False, returnCov:bool=False):
+    if not isinstance(gpr, GaussianProcessRegressor):
+        raise TypeError(f"gpr should be a GaussianProcessRegressor instance, got {type(gpr).__name__}.")
+    if not isinstance(nDV, int):
+        raise TypeError(f"nDV should be an integer value.")
+    if nDV<1:
+        raise ValueError(f"nDV should be a positive integer.")
+    if returnStd and returnCov:
+        raise ValueError(f"At most one of returnStd and returnCov can be True.")
+    if not isinstance(inputData, np.ndarray):
+        raise TypeError(f"inputData should be a numpy array.")
+    if inputData.dtype!=np.float64:
+        raise TypeError(f"inputData should have a dtype of np.float64.")
+    if inputData.ndim!=2:
+        raise ValueError(f"inputData should be a 2D numpy array, got {inputData.ndim} dimensions.")
+    if inputData.shape[1]!=nDV:
+         raise ValueError(f"inputData should be a 2D numpy array with {nDV} columns, got {inputData.shape[1]} columns.")
+    
+    mean=None
+    std: Optional[np.ndarray] = None
+    cov: Optional[np.ndarray] = None
+    if returnStd and not returnCov:
+        mean, std=gpr.predict(inputData, returnStd, returnCov)
+    if not returnStd and returnCov:
+        mean, cov=gpr.predict(inputData, returnStd, returnCov)
+    if not returnStd and not returnCov:
+        mean = gpr.predict(inputData, returnStd, returnCov)
+    
+    preds=prediction(mean=mean, std=std, cov=cov)
+    return preds
+
+
+def nextDesign(preds:prediction, nDV: int, inputData:npt.NDArray[np.float64]):
+    if not isinstance(preds, prediction):
+        raise TypeError(f"preds should be a value returned from gprPredict() function.")
+    if not isinstance(nDV, int):
+        raise TypeError(f"nDV should be an integer value.")
+    if nDV<1:
+        raise ValueError(f"nDV should be a positive integer.")
+    if not isinstance(inputData, np.ndarray):
+        raise TypeError(f"inputData should be a numpy array.")
+    if inputData.dtype!=np.float64:
+        raise TypeError(f"inputData should have a dtype of np.float64.")
+    if inputData.ndim!=2:
+        raise ValueError(f"inputData should be a 2D array, got {inputData.ndim} dimensions.")
+    if inputData.shape[1]!=nDV:
+        raise ValueError(f"inputData should be a 2D numpy array with {nDV} columns, got {inputData.shape[1]} columns.")    
+    if preds.mean is None:
+        raise ValueError(f"The value of 'mean' field of preds should not be None.")
+    predMean=preds.mean
+    if preds.std is not None:
+        predStd=preds.std
+    if preds.cov is not None:
+        predCov=preds.cov
+
+    maxStdIdx=np.argmax(predStd)
+    nextDesign=inputData[maxStdIdx]
+    
+    return nextDesign, predMean[maxStdIdx], predStd[maxStdIdx]
+
+
+
 def gprFit2D(gpr:GaussianProcessRegressor, fitData: npt.NDArray[np.float64], obsData: npt.NDArray[np.float64]):
     if not isinstance(gpr, GaussianProcessRegressor):
         raise TypeError(f"gpr should be a GaussianProcessRegressor instance, got {type(gpr).__name__}.")
