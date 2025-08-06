@@ -21,6 +21,10 @@ from nlt_main.utils.utils import collect_participant_info, save_results
 from nlt_main.NLE.draw_dots import draw_grid_position, calculate_dot_size
 from gpal.gpal_optimize import gpal_optimize
 
+# Import ADO functions
+from ADO.ado import log_likelihood, generate_grid_params, generate_grid_designs, generate_grid_response
+from adopy import Task, Model, Engine
+
 def show_instructions(visuals, text):
     """
     Display the instructions for the number line estimation task.
@@ -50,7 +54,7 @@ def show_instructions(visuals, text):
     right_dots.draw()
 
 
-    instructions = visual.TextStim(win, text=text, color='black', wrapWidth=1500, pos=(0, -500))
+    instructions = visual.TextStim(win, text=text, color='black', wrapWidth=1500, pos=(0, -500), height=30)
 
     instructions.draw()
     win.flip()
@@ -143,7 +147,8 @@ def trial(number, dot_size, visuals, max_number=100):
     # Get estimation
     est = round((x + 500) / 1000 * max_number, 2)
     res = [{'timestamp': timestep, 'given_number': number, 'upper_bound': max_number, 'estimation': est, 'estimation_rt': reaction_time, 'stimulus_ts_on': start_time, 'stimulus_ts_off': end_time, 'size_control': dot_size}]
-    prompt.text = "계속 진행하려면 스페이스바를 누르세요."
+    text = "계속 진행하려면 스페이스바를 누르세요."
+    prompt = visual.TextStim(win, text=text, color='black', wrapWidth=1500, pos=(0, -500), height=30)
 
     # Draw the final screen with the estimation mark
     line.draw()
@@ -201,15 +206,33 @@ def run_NLE_block(gpr, records, block_len, block_idx, trial_idx, visuals, return
 
     return res
 
+def run_NLE_block_ado(engine, visuals, size_control=False):
+    # Get the design using the ADO engine
+    design = engine.get_design('optimal')
+    dot_size = 4 if not size_control else calculate_dot_size(max_number_size=4, number=int(design['given_number']), max_number=500)
+
+    res = trial(int(design['given_number']), dot_size, visuals, max_number=500)
+
+    res[0]['size_control'] = 1 if size_control else 0
+
+    # Update the engine with the design and response
+    response = int(res[0]['estimation'])
+    engine.update(design, response)
+
+    event.waitKeys(keyList=['space'])
+
+    return res
 
 def run_experiment(config, gpr, visuals, info):
 
-    intro_text = "본 실험에서, 이 작업에는 다음과 같은 숫자 선이 있습니다.\n" \
-                "각 숫자 선의 왼쪽 끝에는 점이 없고 오른쪽 쪽 끝에는 몇 개의 점이 있습니다.\n" \
-                "선 위에 점이 잠시 나타납니다.\n" \
-                "선 위에서 점이 위치할 곳을 클릭해 주세요.\n" \
-                "스페이스바를 눌러 시작하세요."
-
+    intro_text = "이제부터 선 위에 나타나는 박스의 위치를 추정하는 과제를 수행하게 됩니다. \n" \
+                "선의 양 끝에는 두 개의 박스가 있습니다. \n" \
+                "왼쪽 박스는 비어 있고, 오른쪽 박스에는 여러 개의 점이 들어 있습니다. \n" \
+                "화면 위쪽에 나타나는 박스에 들어있는 점의 수를 보고, \n" \
+                "이 점들이 어디쯤에 있다고 생각되는지, \n" \
+                "선 위의 적절한 위치를 마우스로 클릭해 표시해주세요. \n" \
+                "준비가 되면 스페이스바를 눌러 시작합니다."
+    
     show_instructions(visuals, intro_text)
 
     num_trials = config.get('n_trials')
@@ -223,11 +246,11 @@ def run_experiment(config, gpr, visuals, info):
     for preIdx in range(5):
         results = run_NLE_block(gpr, record_array_pre, block_len, 0, 0, visuals, return_std, return_cov) # for 5 test trials
 
-    test_text = "연습이 종료되었습니다. \n 궁금한 점이 있으시면 질문해주세요. \n 계속 진행하시려면 스페이스바를 누르세요."  
+    test_text = "연습이 종료되었습니다. \n 궁금한 점이 있으시면 질문해주세요."  
     show_instructions(visuals, test_text)  
 
-    # Run the NLE block
-    num_blocks=3
+    # Run the GPAL block
+    num_blocks=1
 
     record_array=np.zeros((n_DVs+1, num_blocks*block_len))
     block_res = []
@@ -243,18 +266,46 @@ def run_experiment(config, gpr, visuals, info):
                 results=run_NLE_block(gpr, record_array, block_len, bIdx, idx, visuals, return_std, return_cov)
             block_res.extend(results) 
 
+    # Run the ADO Block
+    ado_block_res = []
+    size_control_list = [True]*num_trials + [False]*num_trials  # Second block with variable dot size
+    random.shuffle(size_control_list)  # Shuffle the order of blocks
+
+    # engine initialization
+    task = Task(name='ADO-NLT', designs=['given_number'], responses=['response'])
+    model = Model(name = "MLLM",
+              task = task,
+              params = ["a", "b", "lam", "sigma"],
+              func = log_likelihood)
+    engine = Engine(task, model, 
+                    grid_design=generate_grid_designs(),
+                    grid_param=generate_grid_params(),
+                    grid_response=generate_grid_response()
+    )
+    for idx, size_control_flag in enumerate(size_control_list):
+        if size_control_flag:
+            results = run_NLE_block_ado(engine, visuals, size_control=True)
+        else:
+            results = run_NLE_block_ado(engine, visuals, size_control=False)
+        ado_block_res.extend(results)
+
     # Save the results to a CSV file
-    filename = f"results_{info['Participant ID']}_{info['Name']}.csv"
+    filename = f"ado_results_{info['Participant ID']}.csv"
+    save_results_dir=config.get('save_results_dir')
+    save_results(save_results_dir, ado_block_res, info, filename=filename)
+
+    # Save the results to a CSV file
+    filename = f"gpal_results_{info['Participant ID']}.csv"
     save_results_dir=config.get('save_results_dir')
     save_results(save_results_dir, block_res, info, filename=filename)
 
-    sbj=f"_{info['Participant ID']}_{info['Name']}"
+    sbj=f"{info['Participant ID']}"
     save_models_dir=config.get('save_models_dir')
     save_models_sbj_dir=save_models_dir+'/'+sbj  # The directory to save the optimized model for each subject
 
     if not os.path.exists(save_models_sbj_dir):
         os.mkdir(save_models_sbj_dir)
-    filepath=f"{save_models_sbj_dir}/GPR_{info['Participant ID']}_{info['Name']}.pkl"
+    filepath=f"{save_models_sbj_dir}/GPR_{info['Participant ID']}.pkl"
     with open(filepath, "wb") as f:
         pickle.dump(gpr, f)
     
@@ -262,6 +313,14 @@ def run_experiment(config, gpr, visuals, info):
     print("Experiment completed. Results saved.")
 
     win=visuals['win']
+    win.flip()
+
+    # Display Ending Message
+    text = "실험이 종료되었습니다. \n 참여해주셔서 감사합니다! \n 스페이스바를 눌러 종료하세요."
+    prompt = visual.TextStim(win, text=text, color='black', wrapWidth=1500, pos=(0, 0), height=30)
+    prompt.draw()
+    win.flip()
+    event.waitKeys(keyList=['space'])
     win.close()
     core.quit()
 
