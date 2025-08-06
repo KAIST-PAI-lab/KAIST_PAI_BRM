@@ -26,7 +26,7 @@ from nlt_main.main import run_experiment
 os.environ["CUDA_VISIBLE_DEVICES"] = '2'  # Specifying the GPU to use
 
 
-
+ 
 
 if __name__=="__main__":
 
@@ -82,12 +82,12 @@ if __name__=="__main__":
                             mulIdx=multiplied_indices, sumIdx=summed_indices, 
                             alpha=alpha, n_restarts_optimizer=n_restarts_optimizer, 
                             normalize_y=normalize_y, random_state=gpr_random_state)
-    
+    print(f"Hyperparameters: {kernel.get_params()}")
     info = collect_participant_info()
     print(f"Participant Info: {info}")
 
     # Create a window 
-    win = visual.Window([1800, 1200], color='grey', units='pix', fullscr=True)
+    win = visual.Window([1800, 1200], color='grey', units='pix', fullscr=False)
     line = visual.Line(win, start=(-500, 0), end=(500, 0), lineColor='black')
     line_leftend = visual.Line(win, start=(-500, -10), end=(-500, 10), lineColor='black')
     line_rightend = visual.Line(win, start=(500, -10), end=(500, 10), lineColor='black')

@@ -144,7 +144,7 @@ class KernelBuilder():
     def create(self, typeK:str, params:dict):
         def matchParam(kernel:Kernel, params:dict):
             kernelKeys=kernel.get_params().keys()
-            if set(params.keys())!=set(kernelKeys):
+            if not set(params.keys()).issubset(set(kernelKeys)):
                 raise ValueError(f"The parameters provided ({set(params.keys())}) do not match the required ones: {set(kernelKeys)}.")
             return True
 

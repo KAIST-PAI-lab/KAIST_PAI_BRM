@@ -11,7 +11,7 @@ n_DVs: 1                          # The number of design variables subject to op
 n_kernels: 2                      # The number of individual kernels to be combined. Should be a positive integer.
 alpha: 0.0000000001                      # A value added to the diagonal of the kernel matrix during fitting.
 normalize_y: True                 # A binary mask indicating whether to normalize the target values while fitting.
-n_restarts_optimizer: 0           # The number of restarts of the optimizer to find the optimal kernel parameters.
+n_restarts_optimizer: 100          # The number of restarts of the optimizer to find the optimal kernel parameters.
 type_kernels_index: [0,6]         # A list of indices of kernels to be combined. Refer to 'kernelTypeDic' above.
 parameters_list: [[1.0], # A list of list of arguments to be fed to each kernel.
                   [1.0]]

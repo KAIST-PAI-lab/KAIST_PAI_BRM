@@ -71,7 +71,6 @@ def gpal_optimize(gpr:GaussianProcessRegressor, nDV: int, dvs:npt.NDArray[np.flo
     pred=gprPredict(gpr, nDV, X_pred, r_s, r_c)
     nextX, pMean, pStd=nextDesign(pred, nDV, X_pred)
 
-
     return nextX, pMean, pStd, lml
 
 

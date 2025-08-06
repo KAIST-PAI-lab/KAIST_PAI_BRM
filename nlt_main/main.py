@@ -201,6 +201,16 @@ def run_NLE_block(gpr, records, block_len, block_idx, trial_idx, visuals, return
     res[0]['posterior_mean'] = pMean
     res[0]['posterior_std'] = pStd
     res[0]['log_marginal_likelihood'] = lml
+    
+    if trial_idx==0:
+        constant_value=np.exp(gpr.kernel.k1.theta[0])
+        length_scale=np.exp(gpr.kernel.k2.theta[0])
+    else:
+        constant_value=np.exp(gpr.kernel_.k1.theta[0])
+        length_scale=np.exp(gpr.kernel_.k2.theta[0])
+    res[0]['constant_value']=constant_value
+    res[0]['length_scale'] = length_scale
+    
     #block_res.extend(res)
     event.waitKeys(keyList=['space'])
 
