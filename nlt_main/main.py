@@ -21,10 +21,6 @@ from nlt_main.utils.utils import collect_participant_info, save_results
 from nlt_main.NLE.draw_dots import draw_grid_position, calculate_dot_size
 from gpal.gpal_optimize import gpal_optimize
 
-# Import ADO functions
-from ado.ado import log_likelihood, generate_grid_params, generate_grid_designs, generate_grid_response
-from adopy import Task, Model, Engine
-
 def show_instructions(visuals, text):
     """
     Display the instructions for the number line estimation task.
@@ -62,8 +58,7 @@ def show_instructions(visuals, text):
 
 def trial(number, dot_size, visuals, max_number=100):
     """
-    Run a single trial of the number line estimation task.
-    All dots have same size, so this function is used first half of the number-line task.
+    Display a single trial of the number line estimation task.
     """
 
     win=visuals['win']
@@ -163,8 +158,7 @@ def trial(number, dot_size, visuals, max_number=100):
 
     return res
 
-
-def run_NLE_block(gpr, records, tracks, block_len, block_idx, trial_idx, visuals, return_std=True, return_cov=False, size_control=False):
+def run_NLE_gpal(gpr, records, tracks, block_len, block_idx, trial_idx, visuals, return_std=True, return_cov=False, size_control=False):
     
     block_start=block_len*block_idx
     
@@ -218,7 +212,11 @@ def run_NLE_block(gpr, records, tracks, block_len, block_idx, trial_idx, visuals
 
     return res
 
-def run_NLE_block_ado(engine, visuals, size_control=False):
+def run_NLE_ado(engine, visuals, size_control=False):
+    """
+    Run a single trial of the number line estimation task using ADO optimization.
+    """
+
     # Get the design using the ADO engine
     design = engine.get_design('optimal')
     dot_size = 4 if not size_control else calculate_dot_size(max_number_size=4, number=int(design['given_number']), max_number=500)
@@ -226,6 +224,10 @@ def run_NLE_block_ado(engine, visuals, size_control=False):
     res = trial(int(design['given_number']), dot_size, visuals, max_number=500)
 
     res[0]['size_control'] = 1 if size_control else 0
+    
+    res[0].update({f'post_mean_{k}': v for k, v in engine.post_mean.items()})
+    res[0].update({f'post_sd_{k}': v for k, v in engine.post_sd.items()})
+
 
     # Update the engine with the design and response
     response = int(res[0]['estimation'])
@@ -235,7 +237,78 @@ def run_NLE_block_ado(engine, visuals, size_control=False):
 
     return res
 
-def run_experiment(config, gpr, visuals, info):
+def run_NLE_random(visuals, given_number, size_control=False):
+    """
+    Run a single trial of the number line estimation task with balanced randomization.
+    """
+    dot_size = 4 if not size_control else calculate_dot_size(max_number_size=4, number=given_number, max_number=500)
+    res = trial(given_number, dot_size, visuals, max_number=500)
+    res[0]['size_control'] = 1 if size_control else 0
+    event.waitKeys(keyList=['space'])
+    return res
+
+
+def run_gpal_block(gpr, visuals, n_trials, n_DVs, return_std=True, return_cov=False):
+    """
+    Run a block of trials using GPAL optimization.
+    """
+    block_len = n_trials * 2  # Two trials per block
+    num_cands=int((500-5)/5+1)
+    record_array=np.zeros((n_DVs+1, block_len))
+    track_array=np.zeros((2, block_len, num_cands))
+    block_res = []
+    size_control_list = [True]*n_trials + [False]*n_trials  # Second block with variable dot size
+    random.shuffle(size_control_list)  # Shuffle the order of blocks
+
+    for idx, size_control_flag in enumerate(size_control_list):
+        results=run_NLE_gpal(gpr, record_array, track_array, block_len, 0, idx, visuals, return_std, return_cov, size_control=size_control_flag)
+        block_res.extend(results)
+
+    return block_res, track_array 
+
+def run_ado_block(engine, visuals, n_trials):
+    """
+    Run a block of trials using ADO optimization.
+    """
+
+    size_control_list = [True]*int(n_trials) + [False]*int(n_trials) 
+    random.shuffle(size_control_list)  # Shuffle the order of blocks
+
+    block_len = n_trials*2
+    block_res = []
+    
+    for trial_idx in range(block_len):
+        res = run_NLE_ado(engine, visuals, size_control_list[trial_idx])
+        block_res.extend(res)
+
+    return block_res
+
+def run_random_block(visuals, n_trials):
+
+    """
+    Run a block of trials with balanced randomization.
+    """
+    block_len = n_trials*2
+    block_res = []
+    
+    # Generate a list of given numbers
+    given_number_list = np.linspace(5,480,20)
+    random.shuffle(given_number_list)  # Shuffle the order of given numbers
+
+    # Generate a list of size control flags
+    size_control_list = [True]*int(n_trials) + [False]*int(n_trials) 
+    random.shuffle(size_control_list)  # Shuffle the order of blocks
+
+    for trial_idx in range(block_len):
+        given_number = int(given_number_list[trial_idx])
+        size_control = size_control_list[trial_idx]
+        res = run_NLE_random(visuals, given_number, size_control)
+        block_res.extend(res)
+
+    return block_res
+
+
+def run_experiment(config, gpr, engine, visuals, info):
 
     intro_text = "이제부터 선 위에 나타나는 박스의 위치를 추정하는 과제를 수행하게 됩니다. \n" \
                 "선의 양 끝에는 두 개의 박스가 있습니다. \n" \
@@ -258,62 +331,56 @@ def run_experiment(config, gpr, visuals, info):
     track_array_pre=np.zeros((2, 5, num_cands))
     # Run the pre-NLE block (test trials)
     for preIdx in range(5):
-        results = run_NLE_block(gpr, record_array_pre, track_array_pre, block_len, 0, 0, visuals, return_std, return_cov) # for 5 test trials
+        results = run_NLE_gpal(gpr, record_array_pre, track_array_pre, block_len, 0, 0, visuals, return_std, return_cov) # for 5 test trials
 
     test_text = "연습이 종료되었습니다. \n 궁금한 점이 있으시면 질문해주세요."  
-    show_instructions(visuals, test_text)  
+    show_instructions(visuals, test_text) 
 
-    # Run the GPAL block
-    num_blocks=1
-    record_array=np.zeros((n_DVs+1, num_blocks*block_len))
-    track_array=np.zeros((2, block_len, num_cands))
-    block_res = []
-    for bIdx in range(num_blocks):
+    pid = int(info['Participant ID'])
+    if pid % 3 == 0:
+        # GPAL -> ADO -> Random
+        print("Running GPAL block...")
+        block_res, track_array = run_gpal_block(gpr, visuals, num_trials, n_DVs, return_std, return_cov)
+        print("Running ADO block...")
+        ado_result = run_ado_block(engine, visuals, num_trials)
+        print("Running Random block...")
+        random_result = run_random_block(visuals, num_trials)
 
-        size_control_list = [True]*num_trials + [False]*num_trials  # Second block with variable dot size
-        random.shuffle(size_control_list)  # Shuffle the order of blocks
+    elif pid % 3 == 1:
+        # ADO -> Random -> GPAL
+        print("Running ADO block...")
+        ado_result = run_ado_block(engine, visuals, num_trials)
+        print("Running Random block...")
+        random_result = run_random_block(visuals, num_trials)
+        print("Running GPAL block...")
+        block_res, track_array = run_gpal_block(gpr, visuals, num_trials, n_DVs, return_std, return_cov)
 
-        for idx, size_control_flag in enumerate(size_control_list):
-            if size_control_flag:
-                results=run_NLE_block(gpr, record_array, track_array, block_len, bIdx, idx, visuals, return_std, return_cov, size_control=True)  # Second block with variable dot size
-            else:
-                results=run_NLE_block(gpr, record_array, track_array, block_len, bIdx, idx, visuals, return_std, return_cov)
-            block_res.extend(results) 
+    else:
+        # Random -> GPAL -> ADO
+        print("Running Random block...")
+        random_result = run_random_block(visuals, num_trials)
+        print("Running GPAL block...")
+        block_res, track_array = run_gpal_block(gpr, visuals, num_trials, n_DVs, return_std, return_cov)
+        print("Running ADO block...")
+        ado_result = run_ado_block(engine, visuals, num_trials)
 
     
+    save_results_dir=config.get('save_results_dir')
+    save_results_dir = os.path.join(save_results_dir, f"participant_{info['Participant ID']}")
+    if not os.path.exists(save_results_dir):
+        os.makedirs(save_results_dir, exist_ok=True)
 
-    # Run the ADO Block
-    ado_block_res = []
-    size_control_list = [True]*num_trials + [False]*num_trials  # Second block with variable dot size
-    random.shuffle(size_control_list)  # Shuffle the order of blocks
-
-    # engine initialization
-    task = Task(name='ADO-NLT', designs=['given_number'], responses=['response'])
-    model = Model(name = "MLLM",
-              task = task,
-              params = ["a", "b", "lam", "sigma"],
-              func = log_likelihood)
-    engine = Engine(task, model, 
-                    grid_design=generate_grid_designs(),
-                    grid_param=generate_grid_params(),
-                    grid_response=generate_grid_response()
-    )
-    for idx, size_control_flag in enumerate(size_control_list):
-        if size_control_flag:
-            results = run_NLE_block_ado(engine, visuals, size_control=True)
-        else:
-            results = run_NLE_block_ado(engine, visuals, size_control=False)
-        ado_block_res.extend(results)
-
+    
     # Save the results to a CSV file
     filename = f"ado_results_{info['Participant ID']}.csv"
-    save_results_dir=config.get('save_results_dir')
-    save_results(save_results_dir, ado_block_res, info, filename=filename)
+    save_results(save_results_dir, ado_result, info, filename=filename)
 
     # Save the results to a CSV file
     filename = f"gpal_results_{info['Participant ID']}.csv"
-    save_results_dir=config.get('save_results_dir')
     save_results(save_results_dir, block_res, info, filename=filename)
+
+    filename = f"random_results_{info['Participant ID']}.csv"
+    save_results(save_results_dir, random_result, info, filename=filename)
 
     filename = f"gpal_posterior_mean_{info['Participant ID']}.csv"
     np.savetxt(os.path.join(save_results_dir, filename), track_array[0], delimiter=',')
@@ -345,12 +412,6 @@ def run_experiment(config, gpr, visuals, info):
     event.waitKeys(keyList=['space'])
     win.close()
     core.quit()
-
-
-
-
-
-
     
     '''
     random.seed(args.seed)  # For reproducibility
