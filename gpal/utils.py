@@ -314,38 +314,38 @@ def argsConstructor(N:int, kernelTypeIdx:list[int], paramsList:list[list]):
 
 
 
-def plotStd2D(figsize:Tuple[int], X_fit:npt.NDArray, X_pred:npt.NDArray, y_fit:npt.NDArray, y_pred:npt.NDArray,
-         y_std:npt.NDArray, xlabel:str="Given Number", ylabel:str="Number Estimate", title:str="Given Number Estimates (2D)", sigma_coef:float=1.0):
+def plotStd1D(figsize:Tuple[int, int], X_fit:npt.NDArray, X_pred:npt.NDArray, y_fit:npt.NDArray, y_mean:npt.NDArray,
+         y_std:npt.NDArray, xlabel:str, ylabel:str, title:str, sigma_coef:float=1.0):
     if any([not isinstance(fs, int) for fs in figsize]):
         raise ValueError(f"Elements of figsize should be an int value.")
     if len(figsize)!=2:
         raise ValueError(f"figsize should be of length 2.")
     if not isinstance(X_fit, np.ndarray):
-        raise TypeError(f"X_fit should be a 2-D numpy array.")
-    if X_fit.ndim!=2:
-        raise ValueError(f"X_fit should be a 2-D numpy array.")
+        raise TypeError(f"X_fit should be a numpy array.")
+    if X_fit.ndim!=1:
+        raise ValueError(f"X_fit should be a 1D array.")
     if not isinstance(X_pred, np.ndarray):
-        raise TypeError(f"X_pred should be a 2-D numpy array.")
-    if X_pred.ndim!=2:
-        raise ValueError(f"X_pred should be a 2-D numpy array.")
+        raise TypeError(f"X_pred should be a numpy array.")
+    if X_pred.ndim!=1:
+        raise ValueError(f"X_pred should be a 1D array.")
     if not isinstance(y_fit, np.ndarray):
-        raise TypeError(f"y_fit should be a 1-D numpy array.")
+        raise TypeError(f"y_fit should be a numpy array.")
     if y_fit.ndim!=1:
-        raise ValueError(f"y_fit should be a 1-D numpy array.")
-    if not isinstance(y_pred, np.ndarray):
-        raise TypeError(f"y_pred should be a 1-D numpy array.")
-    if y_pred.ndim!=1:
-        raise ValueError(f"y_pred should be a 1-D numpy array.")
+        raise ValueError(f"y_fit should be a 1D array.")
+    if not isinstance(y_mean, np.ndarray):
+        raise TypeError(f"y_mean should be a numpy array.")
+    if y_mean.ndim!=1:
+        raise ValueError(f"y_mean should be a 1D array.")
     if not isinstance(y_std, np.ndarray):
-        raise TypeError(f"y_std should be a 1-D numpy array.")
+        raise TypeError(f"y_std should be a numpy array.")
     if y_std.ndim!=1:
-        raise ValueError(f"y_std should be a 1-D numpy array.")
+        raise ValueError(f"y_std should be a 1D array.")
     if X_fit.shape[0]!=y_fit.shape[0]:
-        raise ValueError(f"X_fit and y_fit should have equal length in 0-th dimension, got {X_fit.shape[0]} and {y_fit.shape[0]}.")
-    if X_pred.shape[0]!=y_pred.shape[0]:
-        raise ValueError(f"X_pred and y_pred should have equal length in 0-th dimension, got {X_pred.shape[0]} and {y_pred.shape[0]}.")
+        raise ValueError(f"X_fit and y_fit should have equal length, got {X_fit.shape[0]} and {y_fit.shape[0]}.")
+    if X_pred.shape[0]!=y_mean.shape[0]:
+        raise ValueError(f"X_pred and y_mean should have equal length, got {X_pred.shape[0]} and {y_mean.shape[0]}.")
     if X_pred.shape[0]!=y_std.shape[0]:
-        raise ValueError(f"X_pred and y_std should have equal length in 0-th dimension, got {X_pred.shape[0]} and {y_std.shape[0]}.")
+        raise ValueError(f"X_pred and y_std should have equal length, got {X_pred.shape[0]} and {y_std.shape[0]}.")
     if sigma_coef<0:
         raise ValueError(f"sigma_coef should be non-negative, got {sigma_coef}.")
     if not isinstance(xlabel, str):
@@ -357,8 +357,8 @@ def plotStd2D(figsize:Tuple[int], X_fit:npt.NDArray, X_pred:npt.NDArray, y_fit:n
 
     plt.figure(figsize=figsize)
     plt.scatter(X_fit, y_fit, c='black', label='Data')
-    plt.plot(X_pred, y_pred, label="Prediction")
-    plt.fill_between(X_pred.ravel(), y_pred-sigma_coef*y_std, y_pred+sigma_coef*y_std, alpha=0.3, label="Uncertainty")
+    plt.plot(X_pred, y_mean, label="Prediction")
+    plt.fill_between(X_pred.ravel(), y_mean-sigma_coef*y_std, y_mean+sigma_coef*y_std, alpha=0.3, label="Uncertainty")
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.title(title)
@@ -368,23 +368,23 @@ def plotStd2D(figsize:Tuple[int], X_fit:npt.NDArray, X_pred:npt.NDArray, y_fit:n
 
 
 
-def plotEstim2D(figsize:Tuple[int], dv1:npt.NDArray, est:npt.NDArray, 
-                xlabel:str, ylabel:str, title:str='A Design Variable and Target Estimate (2D)'):
+def plotEstim1D(figsize:Tuple[int, int], dv1:npt.NDArray, est:npt.NDArray, 
+                xlabel:str, ylabel:str, title:str):
     if any([not isinstance(fs, int) for fs in figsize]):
         raise ValueError(f"Elements of figsize should be an int value.")
     if len(figsize)!=2:
         raise ValueError(f"figsize should be of length 2.")
     if not isinstance(dv1, np.ndarray):
-        raise TypeError(f"dv1 should be a 1-D numpy array.")
+        raise TypeError(f"dv1 should be a numpy array.")
     if dv1.ndim!=1:
-        raise ValueError(f"dv1 should be a 1-D numpy array.")
+        raise ValueError(f"dv1 should be a 1D array.")
     N=dv1.shape[0]
     if not isinstance(est, np.ndarray):
-        raise TypeError(f"est should be a 1-D numpy array.")
+        raise TypeError(f"est should be a numpy array.")
     if est.ndim!=1:
-        raise ValueError(f"est should be a 1-D numpy array.")
+        raise ValueError(f"est should be a 1D array.")
     if est.shape[0]!=N:
-        raise ValueError(f"est should have the same length with dv1, got {est.shape[0]} and {dv1.shape[0]}.")
+        raise ValueError(f"est and dv1 should have equal length, got {est.shape[0]} and {dv1.shape[0]}.")
     if not isinstance(xlabel, str):
         raise TypeError(f"xlabel should be a string value.")
     if not isinstance(ylabel, str):
@@ -392,16 +392,19 @@ def plotEstim2D(figsize:Tuple[int], dv1:npt.NDArray, est:npt.NDArray,
     if not isinstance(title, str):
         raise TypeError(f"title should be a string value.")
     
+    argsorted=np.argsort(est)
+    est=est[argsorted]
+    dv1=dv1[argsorted]
         
-    idx=np.arange(len(dv1))
-    dv1_x=interp1d(idx, dv1, kind='cubic')
-    est_y=interp1d(idx, est, kind='cubic')
+    idx=np.arange(N)
+    dv1_x=interp1d(idx, dv1, kind='slinear')
+    est_y=interp1d(idx, est, kind='slinear')
 
-    idx_interp=np.linspace(0, N, 5*N)
+    idx_interp=np.linspace(0, N-1, 10*(N-1))
     dv1_interp=dv1_x(idx_interp)
     est_interp=est_y(idx_interp)
 
-    fig=plt.figure(figsize=figsize)
+    plt.figure(figsize=figsize)
     plt.plot(dv1_interp, est_interp, color='black')
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
@@ -410,29 +413,25 @@ def plotEstim2D(figsize:Tuple[int], dv1:npt.NDArray, est:npt.NDArray,
 
 
 
-def plotEstim3D(figsize:Tuple[int], dv1:npt.NDArray, dv2:npt.NDArray, est:npt.NDArray, 
-                xlabel:str, ylabel:str, zlabel:str, title:str='Design Variables and Target Estimate (3D)'):
+def plotEstim2D(figsize:Tuple[int, int], dvs:npt.NDArray, est:npt.NDArray, 
+                xlabel:str, ylabel:str, zlabel:str, title:str):
     if any([not isinstance(fs, int) for fs in figsize]):
         raise ValueError(f"Elements of figsize should be an int value.")
     if len(figsize)!=2:
         raise ValueError(f"figsize should be of length 2.")
-    if not isinstance(dv1, np.ndarray):
-        raise TypeError(f"dv1 should be a 1-D numpy array.")
-    if dv1.ndim!=1:
-        raise ValueError(f"dv1 should be a 1-D numpy array.")
-    N=dv1.shape[0]
-    if not isinstance(dv2, np.ndarray):
-        raise TypeError(f"dv2 should be a 1-D numpy array.")
-    if dv2.ndim!=1:
-        raise ValueError(f"dv2 should be a 1-D numpy array.")
-    if dv2.shape[0]!=N:
-        raise ValueError(f"dv2 should have the same length with dv1, got {dv2.shape[0]} and {dv1.shape[0]}.")
+    if not isinstance(dvs, np.ndarray):
+        raise TypeError(f"dvs should be a numpy array.")
+    if dvs.ndim!=2:
+        raise ValueError(f"dvs should be a 2D array.")
+    if dvs.shape[1]!=2:
+        raise ValueError(f"dvs should have 2 columns, got {dvs.shape[1]} columns.")
+    N=dvs.shape[0]
     if not isinstance(est, np.ndarray):
-        raise TypeError(f"est should be a 1-D numpy array.")
+        raise TypeError(f"est should be a numpy array.")
     if est.ndim!=1:
-        raise ValueError(f"est should be a 1-D numpy array.")
+        raise ValueError(f"est should be a 1D array.")
     if est.shape[0]!=N:
-        raise ValueError(f"est should have the same length with dv1 & dv2, got {est.shape[0]} and {dv1.shape[0]}.")
+        raise ValueError(f"est and dvs should have equal number of datapoints, got {est.shape[0]} and {N}.")
     if not isinstance(xlabel, str):
         raise TypeError(f"xlabel should be a string value.")
     if not isinstance(ylabel, str):
@@ -443,12 +442,12 @@ def plotEstim3D(figsize:Tuple[int], dv1:npt.NDArray, dv2:npt.NDArray, est:npt.ND
         raise TypeError(f"title should be a string value.")
     
         
-    idx=np.arange(len(dv1))
-    dv1_x=interp1d(idx, dv1, kind='cubic')
-    dv2_y=interp1d(idx, dv2, kind='cubic')
-    est_z=interp1d(idx, est, kind='cubic')
+    idx=np.arange(dvs.shape[0])
+    dv1_x=interp1d(idx, dvs[:,0], kind='slinear')
+    dv2_y=interp1d(idx, dvs[:,1], kind='slinear')
+    est_z=interp1d(idx, est, kind='slinear')
 
-    idx_interp=np.linspace(0, N, 5*N)
+    idx_interp=np.linspace(0, N, *N)
     dv1_interp=dv1_x(idx_interp)
     dv2_interp=dv2_y(idx_interp)
     est_interp=est_z(idx_interp)
@@ -464,7 +463,7 @@ def plotEstim3D(figsize:Tuple[int], dv1:npt.NDArray, dv2:npt.NDArray, est:npt.ND
 
 
 
-def plotFreq2D(figsize:Tuple[int], dv1:npt.NDArray, bins:int, ranges:Optional[Tuple[float]], 
+def plotFreq1D(figsize:Tuple[int, int], dv1:npt.NDArray, bins:int, ranges:Optional[Tuple[float]], 
                xlabel:str, ylabel:str="Frequencies", title:str="Design selection frequencies"):
     
     if any([not isinstance(fs, int) for fs in figsize]):
@@ -472,17 +471,18 @@ def plotFreq2D(figsize:Tuple[int], dv1:npt.NDArray, bins:int, ranges:Optional[Tu
     if len(figsize)!=2:
         raise ValueError(f"figsize should be of length 2.")
     if not isinstance(dv1, np.ndarray):
-        raise TypeError(f"dv1 should be a 1-D numpy array.")
+        raise TypeError(f"dv1 should be a numpy array.")
     if dv1.ndim!=1:
-        raise ValueError(f"dv1 should be a 1-D numpy array.")
+        raise ValueError(f"dv1 should be a 1D array.")
     if not isinstance(bins, int):
         raise TypeError(f"bins should be an integer values.")
-    if not isinstance(ranges, tuple):
-        raise TypeError(f"ranges should be a tuple.")
+    if ranges is not None:
+        if not isinstance(ranges, tuple):
+            raise TypeError(f"ranges should be a tuple or None.")
     if not all([isinstance(r, float) for r in ranges]):
-        raise TypeError(f"ranges should contain float type elements.")
+        raise TypeError(f"ranges should contain float values.")
     if len(ranges)!=2:
-        raise ValueError(f"ranges should contain 2 lists, got {len(ranges)}.")
+        raise ValueError(f"ranges should contain 2 float values, got {len(ranges)}.")
     
     if not isinstance(xlabel, str):
         raise TypeError(f"xlabel should be a string value.")
@@ -492,7 +492,7 @@ def plotFreq2D(figsize:Tuple[int], dv1:npt.NDArray, bins:int, ranges:Optional[Tu
         raise TypeError(f"title should be a string value.")
 
        
-    fig=plt.figure(figsize=figsize)
+    plt.figure(figsize=figsize)
     hist, dv1_pos=np.histogram(dv1, bins=bins, range=ranges)
 
     dv1_pos=dv1_pos.ravel()
@@ -510,44 +510,40 @@ def plotFreq2D(figsize:Tuple[int], dv1:npt.NDArray, bins:int, ranges:Optional[Tu
 
 
 
-def plotFreq3D(figsize:Tuple[int], dv1:npt.NDArray, dv2:npt.NDArray, bins:list[int], ranges:Optional[list[list[float]]], 
+def plotFreq2D(figsize:Tuple[int, int], dvs:npt.NDArray, bins:list[int], ranges:Optional[list[list[float]]], 
                xlabel:str, ylabel:str, zlabel:str="Frequencies", title:str="Design selection frequencies"):
     
     if any([not isinstance(fs, int) for fs in figsize]):
         raise ValueError(f"Elements of figsize should be an int value.")
     if len(figsize)!=2:
         raise ValueError(f"figsize should be of length 2.")
-    if not isinstance(dv1, np.ndarray):
-        raise TypeError(f"dv1 should be a 1-D numpy array.")
-    if dv1.ndim!=1:
-        raise ValueError(f"dv1 should be a 1-D numpy array.")
-    N=dv1.shape[0]
-    if not isinstance(dv2, np.ndarray):
-        raise TypeError(f"dv2 should be a 1-D numpy array.")
-    if dv2.ndim!=1:
-        raise ValueError(f"dv2 should be a 1-D numpy array.")
-    if dv2.shape[0]!=N:
-        raise ValueError(f"dv2 should have the same length with dv1, got {dv2.shape[0]} and {dv1.shape[0]}.")
+    if not isinstance(dvs, np.ndarray):
+        raise TypeError(f"dvs should be a numpy array.")
+    if dvs.ndim!=2:
+        raise ValueError(f"dvs should be a 2D array.")
+    if dvs.shape[1]!=2:
+        raise ValueError(f"dvs should have 2 columns, got {dvs.shape[1]}.")
     if not isinstance(bins, list):
         raise TypeError(f"bins should be a list of integer values.")
     if not all([isinstance(b, int) for b in bins]):
         raise TypeError(f"bins should contain integer values.")
     if len(bins)!=2:
         raise ValueError(f"bins should be of length 2, got {len(bins)}.")
-    if not isinstance(ranges, list):
-        raise TypeError(f"ranges should be a list.")
-    if not all([isinstance(r, list) for r in ranges]):
-        raise TypeError(f"ranges should contain list elements.")
-    if not all([isinstance(r1, float) for r1 in ranges[0]]):
-        raise TypeError(f"ranges[0] should contain float type elements.")
-    if not all([isinstance(r2, float) for r2 in ranges[1]]):
-        raise TypeError(f"ranges[1] should contain float type elements.")
-    if len(ranges)!=2:
-        raise ValueError(f"ranges should contain 2 lists, got {len(ranges)}.")
-    if len(ranges[0])!=2:
-        raise ValueError(f"ranges[0] should contain 2 float elements, got {len(ranges[0])}.")
-    if len(ranges[1])!=2:
-        raise ValueError(f"ranges[1] should contain 2 float elements, got {len(ranges[1])}.")
+    if ranges is not None:
+        if not isinstance(ranges, list):
+            raise TypeError(f"ranges should be a list.")
+        if not all([isinstance(r, list) for r in ranges]):
+            raise TypeError(f"ranges should contain list elements.")
+        if not all([isinstance(r1, float) for r1 in ranges[0]]):
+            raise TypeError(f"ranges[0] should contain float type elements.")
+        if not all([isinstance(r2, float) for r2 in ranges[1]]):
+            raise TypeError(f"ranges[1] should contain float type elements.")
+        if len(ranges)!=2:
+            raise ValueError(f"ranges should contain 2 lists, got {len(ranges)}.")
+        if len(ranges[0])!=2:
+            raise ValueError(f"ranges[0] should contain 2 float elements, got {len(ranges[0])}.")
+        if len(ranges[1])!=2:
+            raise ValueError(f"ranges[1] should contain 2 float elements, got {len(ranges[1])}.")
     
     if not isinstance(xlabel, str):
         raise TypeError(f"xlabel should be a string value.")
@@ -561,7 +557,7 @@ def plotFreq3D(figsize:Tuple[int], dv1:npt.NDArray, dv2:npt.NDArray, bins:list[i
        
     fig=plt.figure(figsize=figsize)
     ax=fig.add_subplot(projection='3d')
-    hist, dv1_edge, dv2_edge=np.histogram2d(dv1, dv2, bins=bins, range=ranges)
+    hist, dv1_edge, dv2_edge=np.histogram2d(dvs[:,0], dvs[:,1], bins=bins, range=ranges)
 
     dv1_pos, dv2_pos=np.meshgrid(dv1_edge[:-1], dv2_edge[:-1], indexing="ij")
     dv1_pos=dv1_pos.ravel()
@@ -580,15 +576,3 @@ def plotFreq3D(figsize:Tuple[int], dv1:npt.NDArray, dv2:npt.NDArray, bins:list[i
 
     plt.show()
     
-
-'''
-for idx, dv in enumerate(dv1):
-        if dv>dv2[idx]:
-            raise ValueError(f" should be smaller than upper-bound value: got {gn} and {ubs[idx]} at index {idx}")
-        if gn<0:
-            raise ValueError(f"given number should be non-negative: got {gn} at index {idx}")
-        if est[idx]>ubs[idx]:
-            raise ValueError(f"estimated number should be smaller than upper-bound value: got {est[idx]} and {ubs[idx]} at index {idx}")
-        if est[idx]<0:
-            raise ValueError(f"estimated number should be non-negative: got {est[idx]} at index {idx}")
-'''

@@ -164,7 +164,7 @@ def trial(number, dot_size, visuals, max_number=100):
     return res
 
 
-def run_NLE_block(gpr, records, block_len, block_idx, trial_idx, visuals, return_std=True, return_cov=False, size_control=False):
+def run_NLE_block(gpr, records, tracks, block_len, block_idx, trial_idx, visuals, return_std=True, return_cov=False, size_control=False):
     
     block_start=block_len*block_idx
     
@@ -177,7 +177,7 @@ def run_NLE_block(gpr, records, block_len, block_idx, trial_idx, visuals, return
         lml=0
     else:
         mask=lambda X:X<=500
-        dv1_spec=[5, 500, int((500-5)/1+1)]
+        dv1_spec=[5, 500, int((500-5)/5+1)]
         dv_spec=[dv1_spec]
         dvs=records[:-1, block_start:block_start+trial_idx]
         print(f"shape: {dvs.shape}")
@@ -198,8 +198,10 @@ def run_NLE_block(gpr, records, block_len, block_idx, trial_idx, visuals, return
     res[0]['size_control'] = 1 if size_control else 0
     records[0][block_start+trial_idx]=res[0]['given_number']
     records[1][block_start+trial_idx]=res[0]['estimation']
-    res[0]['posterior_mean'] = pMean
-    res[0]['posterior_std'] = pStd
+    tracks[0][block_start+trial_idx]=pMean
+    tracks[1][block_start+trial_idx]=pStd
+    res[0]['posterior_mean'] = np.max(pMean)
+    res[0]['posterior_std'] = np.max(pStd)
     res[0]['log_marginal_likelihood'] = lml
     
     if trial_idx==0:
@@ -250,19 +252,21 @@ def run_experiment(config, gpr, visuals, info):
     return_std=config.get('return_std')
     return_cov=config.get('return_cov')
     block_len=2*num_trials
+    num_cands=int((500-5)/5+1)
 
     record_array_pre=np.zeros((n_DVs+1, 5))
+    track_array_pre=np.zeros((2, 5, num_cands))
     # Run the pre-NLE block (test trials)
     for preIdx in range(5):
-        results = run_NLE_block(gpr, record_array_pre, block_len, 0, 0, visuals, return_std, return_cov) # for 5 test trials
+        results = run_NLE_block(gpr, record_array_pre, track_array_pre, block_len, 0, 0, visuals, return_std, return_cov) # for 5 test trials
 
     test_text = "연습이 종료되었습니다. \n 궁금한 점이 있으시면 질문해주세요."  
     show_instructions(visuals, test_text)  
 
     # Run the GPAL block
     num_blocks=1
-
     record_array=np.zeros((n_DVs+1, num_blocks*block_len))
+    track_array=np.zeros((2, block_len, num_cands))
     block_res = []
     for bIdx in range(num_blocks):
 
@@ -271,10 +275,12 @@ def run_experiment(config, gpr, visuals, info):
 
         for idx, size_control_flag in enumerate(size_control_list):
             if size_control_flag:
-                results=run_NLE_block(gpr, record_array, block_len, bIdx, idx, visuals, return_std, return_cov, size_control=True)  # Second block with variable dot size
+                results=run_NLE_block(gpr, record_array, track_array, block_len, bIdx, idx, visuals, return_std, return_cov, size_control=True)  # Second block with variable dot size
             else:
-                results=run_NLE_block(gpr, record_array, block_len, bIdx, idx, visuals, return_std, return_cov)
+                results=run_NLE_block(gpr, record_array, track_array, block_len, bIdx, idx, visuals, return_std, return_cov)
             block_res.extend(results) 
+
+    
 
     # Run the ADO Block
     ado_block_res = []
@@ -308,6 +314,12 @@ def run_experiment(config, gpr, visuals, info):
     filename = f"gpal_results_{info['Participant ID']}.csv"
     save_results_dir=config.get('save_results_dir')
     save_results(save_results_dir, block_res, info, filename=filename)
+
+    filename = f"gpal_posterior_mean_{info['Participant ID']}.csv"
+    np.savetxt(os.path.join(save_results_dir, filename), track_array[0], delimiter=',')
+    filename = f"gpal_posterior_std_{info['Participant ID']}.csv"
+    np.savetxt(os.path.join(save_results_dir, filename), track_array[1], delimiter=',')
+
 
     sbj=f"{info['Participant ID']}"
     save_models_dir=config.get('save_models_dir')

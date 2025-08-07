@@ -94,7 +94,7 @@ def nextDesign(preds:prediction, nDV: int, inputData:npt.NDArray[np.float64]):
     maxStdIdx=np.argmax(predStd)
     nextDesign=inputData[maxStdIdx]
     
-    return nextDesign, predMean[maxStdIdx], predStd[maxStdIdx]
+    return nextDesign, predMean, predStd
 
 
 
