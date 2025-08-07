@@ -7,14 +7,14 @@ def mixed_log_linear(a, b, lam, given_number, N_MAX):
 
 def generate_grid_params():
     return {
-        'a': np.arange(0.5, 1.1, 0.1),
-        'b': np.arange(0, 101, 10),
-        'lam': np.arange(0.1, 1.1, 0.2),
-        'sigma': np.arange(1, 11, 1)
+        'a': np.linspace(0.5, 1, 11),
+        'b': np.linspace(0, 100, 11),
+        'lam': np.linspace(0, 1, 21),
+        'sigma': np.linspace(1, 100, 11)
     }
 
 def generate_grid_designs():
-    return {'given_number': np.arange(5, 501, 1)}
+    return {'given_number': np.arange(5, 501, 5)}
 
 def generate_grid_response():
     return {'response': np.arange(5, 501, 5)}

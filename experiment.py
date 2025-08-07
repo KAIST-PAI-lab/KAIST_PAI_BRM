@@ -23,6 +23,10 @@ from nlt_main.utils.utils import collect_participant_info
 #from nlt_main.NLE.draw_dots import draw_grid_position, calculate_dot_size
 from nlt_main.main import run_experiment
 
+# Import ADO functions
+from ado.ado import log_likelihood, generate_grid_params, generate_grid_designs, generate_grid_response
+from adopy import Task, Model, Engine
+
 os.environ["CUDA_VISIBLE_DEVICES"] = '2'  # Specifying the GPU to use
 
 
@@ -82,6 +86,22 @@ if __name__=="__main__":
                             mulIdx=multiplied_indices, sumIdx=summed_indices, 
                             alpha=alpha, n_restarts_optimizer=n_restarts_optimizer, 
                             normalize_y=normalize_y, random_state=gpr_random_state)
+    print(f"GPAL Hyperparameters: {kernel.get_params()}")
+
+    # ADO engine initialization
+    task = Task(name='ADO-NLT', designs=['given_number'], responses=['response'])
+    model = Model(name = "MLLM",
+              task = task,
+              params = ["a", "b", "lam", "sigma"],
+              func = log_likelihood)
+    engine = Engine(task, model, 
+                    grid_design=generate_grid_designs(),
+                    grid_param=generate_grid_params(),
+                    grid_response=generate_grid_response()
+    )
+
+    print("ADO engine initialized.")
+
     info = collect_participant_info()
     print(f"Participant Info: {info}")
 
@@ -117,6 +137,6 @@ if __name__=="__main__":
             'img_stim':img_stim
             } 
     
-    run_experiment(config, gpr, visuals, info)
+    run_experiment(config, gpr, engine, visuals, info)
     
     
