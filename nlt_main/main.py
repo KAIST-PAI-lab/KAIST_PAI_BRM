@@ -180,7 +180,6 @@ def run_NLE_block(gpr, records, tracks, block_len, block_idx, trial_idx, visuals
         dv1_spec=[5, 500, int((500-5)/5+1)]
         dv_spec=[dv1_spec]
         dvs=records[:-1, block_start:block_start+trial_idx]
-        print(f"shape: {dvs.shape}")
         est=records[-1, block_start:block_start+trial_idx]
         result, pMean, pStd, lml = gpal_optimize(gpr=gpr, 
                                                  nDV=records.shape[0]-1, 

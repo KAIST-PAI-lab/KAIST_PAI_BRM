@@ -5,7 +5,7 @@ import os
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from numpy.typing import NDArray
-from typing import Tuple
+from typing import Tuple, Optional
 
 def plotGPAL(figsize: Tuple[int, int], sbjID:int, x_pred:NDArray, trial_idx:int):
     filePath=os.path.join('results', f"gpal_results_{sbjID}.csv")
@@ -26,14 +26,35 @@ def plotGPAL(figsize: Tuple[int, int], sbjID:int, x_pred:NDArray, trial_idx:int)
     if os.path.exists(stdArrPath):
         stdArr=np.loadtxt(stdArrPath, delimiter=',')
     
-    #plotStd1D(figsize, gns[:trial_idx], x_pred, ests[:trial_idx], meanArr[trial_idx], stdArr[trial_idx],
-    #           "Given Number", "Estimate", f"Posterior mean and std: Subject #{sbjID}, Trial #{trial_idx}", sigma_coef=1.0)
+    plotStd1D(figsize, gns[:trial_idx], x_pred, ests[:trial_idx], meanArr[trial_idx], stdArr[trial_idx],
+               "Given Number", "Estimate", f"Posterior mean and std: Subject #{sbjID}, Trial #{trial_idx}", sigma_coef=1.0)
     
+
+    plotEstim1D(figsize, gns, ests, "Given Number", "Estimate", 
+                f"Given Number and Estimates: Subject #{sbjID}")
+
+def plotFreq(figsize:Tuple[int, int], n_trials: int, bin:int, ranges:Optional[Tuple[float, float]], mode:str='sum'):
     
-    plotEstim1D(figsize, gns[:trial_idx], ests[:trial_idx], "Given Number", "Estimate", 
-                f"Given Number and Estimates: Subject #{sbjID}, Trial #{trial_idx}")
+    filenames=[]
+    contents=os.listdir('results')
+    for file in contents:
+        target='gpal_results_'
+        if target==file[:len(target)]:
+            filenames.append(file)
+    
+    N=len(filenames)
+    gns=np.zeros((N, n_trials-1))
+    for i, file in enumerate(filenames):
+        df=pd.read_csv(os.path.join('results', file))
+        gns[i]=df['given_number'][1:]
+    gns=gns.ravel()
+    plotFreq1D(figsize, N, gns, bin, ranges, mode='average', xlabel="Given Number (Optimized)", title=f"Design selection frequencies ({mode})")
+
+
 
 if __name__=="__main__":
     figsize=(10,8)
+    n_trials=20
     x_pred=np.linspace(5, 500, (500-5)//5+1)
-    plotGPAL(figsize, 20190169, x_pred, 20)
+    #plotGPAL(figsize, 20190169, x_pred, trial_idx=20)
+    plotFreq(figsize, n_trials, bin=10, ranges=(0.0, 500.0), mode='sum')

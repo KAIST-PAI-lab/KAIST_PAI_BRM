@@ -392,7 +392,7 @@ def plotEstim1D(figsize:Tuple[int, int], dv1:npt.NDArray, est:npt.NDArray,
     if not isinstance(title, str):
         raise TypeError(f"title should be a string value.")
     
-    argsorted=np.argsort(est)
+    argsorted=np.argsort(dv1)
     est=est[argsorted]
     dv1=dv1[argsorted]
         
@@ -463,13 +463,17 @@ def plotEstim2D(figsize:Tuple[int, int], dvs:npt.NDArray, est:npt.NDArray,
 
 
 
-def plotFreq1D(figsize:Tuple[int, int], dv1:npt.NDArray, bins:int, ranges:Optional[Tuple[float]], 
-               xlabel:str, ylabel:str="Frequencies", title:str="Design selection frequencies"):
+def plotFreq1D(figsize:Tuple[int, int], N:int, dv1:npt.NDArray, bins:int, ranges:Optional[Tuple[float, float]], 
+               mode:str="sum", xlabel:str="Design Variable", ylabel:str="Frequencies", title:str="Design selection frequencies"):
     
     if any([not isinstance(fs, int) for fs in figsize]):
-        raise ValueError(f"Elements of figsize should be an int value.")
+        raise TypeError(f"Elements of figsize should be an int value.")
     if len(figsize)!=2:
         raise ValueError(f"figsize should be of length 2.")
+    if not isinstance(N, int):
+        raise TypeError(f"N should be an integer value.")
+    if N<1:
+        raise ValueError(f"N should be a positive integer.")
     if not isinstance(dv1, np.ndarray):
         raise TypeError(f"dv1 should be a numpy array.")
     if dv1.ndim!=1:
@@ -479,11 +483,14 @@ def plotFreq1D(figsize:Tuple[int, int], dv1:npt.NDArray, bins:int, ranges:Option
     if ranges is not None:
         if not isinstance(ranges, tuple):
             raise TypeError(f"ranges should be a tuple or None.")
-    if not all([isinstance(r, float) for r in ranges]):
-        raise TypeError(f"ranges should contain float values.")
-    if len(ranges)!=2:
-        raise ValueError(f"ranges should contain 2 float values, got {len(ranges)}.")
-    
+        if not all([isinstance(r, float) for r in ranges]):
+            raise TypeError(f"ranges should contain float values.")
+        if len(ranges)!=2:
+            raise ValueError(f"ranges should contain 2 float values, got {len(ranges)}.")
+    if not isinstance(mode, str):
+        raise TypeError(f"mode should be a string.")
+    if mode not in ["average", "sum"]:
+        raise ValueError(f"mode should be either 'average' or 'sum', got {mode}.")
     if not isinstance(xlabel, str):
         raise TypeError(f"xlabel should be a string value.")
     if not isinstance(ylabel, str):
@@ -495,7 +502,9 @@ def plotFreq1D(figsize:Tuple[int, int], dv1:npt.NDArray, bins:int, ranges:Option
     plt.figure(figsize=figsize)
     hist, dv1_pos=np.histogram(dv1, bins=bins, range=ranges)
 
-    dv1_pos=dv1_pos.ravel()
+    if mode=='average':
+        hist=hist/N
+    dv1_pos=dv1_pos[:-1].ravel()
     freq_pos=0
 
     w=bins*np.ones_like(freq_pos)

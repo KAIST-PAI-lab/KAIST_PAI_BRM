@@ -82,7 +82,6 @@ if __name__=="__main__":
                             mulIdx=multiplied_indices, sumIdx=summed_indices, 
                             alpha=alpha, n_restarts_optimizer=n_restarts_optimizer, 
                             normalize_y=normalize_y, random_state=gpr_random_state)
-    print(f"Hyperparameters: {kernel.get_params()}")
     info = collect_participant_info()
     print(f"Participant Info: {info}")
 
