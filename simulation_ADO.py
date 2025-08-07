@@ -6,6 +6,10 @@ import numpy as np
 import pandas as pd
 import yaml
 from scipy.optimize import minimize
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import RBF
+from sklearn.gaussian_process.kernels import ConstantKernel as C
+from sklearn.metrics import mean_squared_error
 from tqdm import tqdm
 
 import simulation_NLE.psychometric_functions as psy_funcs
@@ -116,11 +120,16 @@ print(grid_response)
 engine = Engine(task, model, grid_design, grid_param, grid_response)
 results = []
 
+x_range = np.linspace(0, N_MAX, N_MAX)
+colors = ["red", "orange", "blue", "purple"]
+
 engine.reset()
 
 scale = 1
 
 bic_list = []
+
+mse_list = []
 
 for i in tqdm(range(N_TRIALS)):
     design = engine.get_design("optimal")
@@ -213,25 +222,81 @@ for i in tqdm(range(N_TRIALS)):
 
     bic_list.append(bic)
 
-x = list(range(1, len(bic_list) + 1))
-y = bic_list
+    # GP mean function estimation & the distance to the true function
+    # Define hyperparameters
+    error_variance = 1e-2
+    length_scale = 10
+    output_variance = 10
 
-plt.plot(x, y)
-plt.xlabel("Trial")
-plt.ylabel("BIC")
-plt.title("BIC over Trials")
-plt.grid(True)
-plt.show()
+    target_kernel = C(output_variance) * RBF(length_scale=length_scale)
+
+    x_train = [int(num) for num in given_numbers]
+    x_train = np.array(x_train).reshape(-1, 1)
+
+    y_train = [int(num) for num in simulated_responses]
+    y_train = np.array(y_train)
+
+    gp_estimation = GaussianProcessRegressor(
+        kernel=target_kernel,
+        alpha=error_variance,
+        normalize_y=True,
+        n_restarts_optimizer=100,
+    )
+
+    gp_estimation.fit(x_train, y_train)
+
+    x_range_2d = np.linspace(1, N_MAX, N_MAX).reshape(-1, 1)
+
+    gp_mean_function = gp_estimation.predict(x_range_2d)
+    true_function_outputs = true_model(**true_params_noiseless, given_number=x_range)
+    true_function_outputs = true_function_outputs.clip(0, N_MAX)
+
+    mse = mean_squared_error(true_function_outputs, gp_mean_function)
+    mse_list.append(mse)
+    number_current_trial = len(mse_list)
+    # GP mean function & true function visualized
+    sigma = SIM_CONFIG["parameter_lists"]["params_" + true_model_name]["param_noise"]
+    plt.figure(figsize=(6, 5))
+    plt.plot(x_range, true_function_outputs, color=colors[0], label="True Function")
+    plt.plot(x_range, gp_mean_function, color=colors[1], label="GP Mean Function")
+    plt.title(f"MSE values over trials, sigma={sigma}")
+    plt.xlabel("Given Number")
+    plt.ylabel("Estimated Value")
+    plt.title(f"N_TRIALS={len(mse_list)}")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(f"GP_func_and_true_func_trial_{number_current_trial}.png")
+    plt.show()
+
+    # MSE values and number of trials
+    plt.figure(figsize=(6, 5))
+    plt.plot(range(1, number_current_trial + 1), mse_list, marker="o")
+    plt.title(f"MSE values over trials, sigma={sigma}")
+    plt.xlabel("N_TRIALS")
+    plt.xticks(range(1, number_current_trial + 1))
+    plt.ylabel("MSE")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+
+# show BIC values across trials
+# x = list(range(1, len(bic_list) + 1))
+# y = bic_list
+
+# plt.plot(x, y)
+# plt.xlabel("Trial")
+# plt.ylabel("BIC")
+# plt.title("BIC over Trials")
+# plt.grid(True)
+# plt.show()
 
 with sim_config_path.open(encoding="utf-8") as f:
     SIM_CONFIG = yaml.safe_load(f)
 model_names = SIM_CONFIG["function_names"]
 
 BICs = []
-
-colors = ["red", "orange", "blue", "purple"]
-
-x_range = np.linspace(0, N_MAX, N_MAX)
 
 for n, model_name in enumerate(model_names):
     print(model_name)
