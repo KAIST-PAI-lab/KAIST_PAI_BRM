@@ -335,13 +335,30 @@ def run_experiment(config, gpr, engine, visuals, info):
     test_text = "연습이 종료되었습니다. \n 궁금한 점이 있으시면 질문해주세요."  
     show_instructions(visuals, test_text) 
 
+    
+    win=visuals['win']
+
     pid = int(info['Participant ID'])
     if pid % 3 == 0:
         # GPAL -> ADO -> Random
         print("Running GPAL block...")
         block_res, track_array = run_gpal_block(gpr, visuals, num_trials, n_DVs, return_std, return_cov)
+        
+        text = "첫 번째 세션이 종료되었습니다. \n 준비가 되면 스페이스바를 눌러 다음 세션을 시작하세요."
+        prompt = visual.TextStim(win, text=text, color='black', wrapWidth=1500, pos=(0, 0), height=30)
+        prompt.draw()
+        win.flip()
+        event.waitKeys(keyList=['space'])
+
         print("Running ADO block...")
         ado_result = run_ado_block(engine, visuals, num_trials)
+
+        text = "두 번째 세션이 종료되었습니다. \n 준비가 되면 스페이스바를 눌러 다음 세션을 시작하세요."
+        prompt = visual.TextStim(win, text=text, color='black', wrapWidth=1500, pos=(0, 0), height=30)
+        prompt.draw()
+        win.flip()
+        event.waitKeys(keyList=['space'])
+
         print("Running Random block...")
         random_result = run_random_block(visuals, num_trials)
 
@@ -349,8 +366,22 @@ def run_experiment(config, gpr, engine, visuals, info):
         # ADO -> Random -> GPAL
         print("Running ADO block...")
         ado_result = run_ado_block(engine, visuals, num_trials)
+
+        text = "첫 번째 세션이 종료되었습니다. \n 준비가 되면 스페이스바를 눌러 다음 세션을 시작하세요."
+        prompt = visual.TextStim(win, text=text, color='black', wrapWidth=1500, pos=(0, 0), height=30)
+        prompt.draw()
+        win.flip()
+        event.waitKeys(keyList=['space'])
+
         print("Running Random block...")
         random_result = run_random_block(visuals, num_trials)
+
+        text = "두 번째 세션이 종료되었습니다. \n 준비가 되면 스페이스바를 눌러 다음 세션을 시작하세요."
+        prompt = visual.TextStim(win, text=text, color='black', wrapWidth=1500, pos=(0, 0), height=30)
+        prompt.draw()
+        win.flip()
+        event.waitKeys(keyList=['space'])
+
         print("Running GPAL block...")
         block_res, track_array = run_gpal_block(gpr, visuals, num_trials, n_DVs, return_std, return_cov)
 
@@ -358,8 +389,22 @@ def run_experiment(config, gpr, engine, visuals, info):
         # Random -> GPAL -> ADO
         print("Running Random block...")
         random_result = run_random_block(visuals, num_trials)
+
+        text = "첫 번째 세션이 종료되었습니다. \n 준비가 되면 스페이스바를 눌러 다음 세션을 시작하세요."
+        prompt = visual.TextStim(win, text=text, color='black', wrapWidth=1500, pos=(0, 0), height=30)
+        prompt.draw()
+        win.flip()
+        event.waitKeys(keyList=['space'])
+
         print("Running GPAL block...")
         block_res, track_array = run_gpal_block(gpr, visuals, num_trials, n_DVs, return_std, return_cov)
+
+        text = "두 번째 세션이 종료되었습니다. \n 준비가 되면 스페이스바를 눌러 다음 세션을 시작하세요."
+        prompt = visual.TextStim(win, text=text, color='black', wrapWidth=1500, pos=(0, 0), height=30)
+        prompt.draw()
+        win.flip()
+        event.waitKeys(keyList=['space'])
+
         print("Running ADO block...")
         ado_result = run_ado_block(engine, visuals, num_trials)
 
@@ -400,7 +445,6 @@ def run_experiment(config, gpr, engine, visuals, info):
 
     print("Experiment completed. Results saved.")
 
-    win=visuals['win']
     win.flip()
 
     # Display Ending Message
