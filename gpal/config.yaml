@@ -8,15 +8,16 @@ n_DVs: 1                          # The number of design variables subject to op
 
 ## Arguments related to initializing the GPR instance.
 
-n_kernels: 2                      # The number of individual kernels to be combined. Should be a positive integer.
+n_kernels: 3                      # The number of individual kernels to be combined. Should be a positive integer.
 alpha: 0.0000000001                      # A value added to the diagonal of the kernel matrix during fitting.
 normalize_y: True                 # A binary mask indicating whether to normalize the target values while fitting.
 n_restarts_optimizer: 100          # The number of restarts of the optimizer to find the optimal kernel parameters.
-type_kernels_index: [0,6]         # A list of indices of kernels to be combined. Refer to 'kernelTypeDic' above.
+type_kernels_index: [0,6,8]         # A list of indices of kernels to be combined. Refer to 'kernelTypeDic' above.
 parameters_list: [[1.0], # A list of list of arguments to be fed to each kernel.
-                  [1.0]]
+                  [1.0],
+                  [0.05]]
 multiplied_indices: [[0], [1]]    # A list of lists indicating the kernels to be multiplied.
-summed_indices: [[], []]          # A list of lists indicating the kernels to be summed.
+summed_indices: [[1], [2]]          # A list of lists indicating the kernels to be summed.
 gpr_random_state: null            # A parameter determining random number generation in initializing the centers of the GP regressor.
 
 
