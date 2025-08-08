@@ -165,7 +165,7 @@ def run_NLE_gpal(gpr, records, tracks, block_len, block_idx, trial_idx, visuals,
     max_number_candidates = [500]
     if trial_idx==0:
         max_number = max_number_candidates[random.randint(0, len(max_number_candidates)-1)]
-        number = random.randint(5, max_number)
+        number = 5*random.randint(1,100)
         pMean=0
         pStd=1
         lml=0
