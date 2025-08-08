@@ -162,7 +162,7 @@ def run_NLE_gpal(gpr, records, tracks, block_len, block_idx, trial_idx, visuals,
     
     block_start=block_len*block_idx
     
-    max_number_candidates = [50*i for i in range(1,11)]
+    max_number_candidates = [500]
     if trial_idx==0:
         max_number = max_number_candidates[random.randint(0, len(max_number_candidates)-1)]
         number = random.randint(5, max_number)
@@ -176,7 +176,7 @@ def run_NLE_gpal(gpr, records, tracks, block_len, block_idx, trial_idx, visuals,
         dvs=records[:-1, block_start:block_start+trial_idx]
         est=records[-1, block_start:block_start+trial_idx]
         result, pMean, pStd, lml = gpal_optimize(gpr=gpr, 
-                                                 nDV=records.shape[0]-1, 
+                                                 nDV=records.shape[0]-1,
                                                  dvs=dvs, 
                                                  est=est, 
                                                  dvSpecs=dv_spec, 
