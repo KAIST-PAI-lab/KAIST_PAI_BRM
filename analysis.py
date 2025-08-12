@@ -1,4 +1,4 @@
-from gpal.utils import plotEstim1D, plotFreq1D, plotStd1D
+from gpal.utils import plotEstim1D, plotFreq1D, plotStd1D, plotStd1DCompare
 import pandas as pd
 import numpy as np
 import os
@@ -18,8 +18,18 @@ def plotStdFitGPAL(figsize: Tuple[int, int], constant_value:float, cv_range:Boun
     if os.path.exists(filePath):
         df=pd.read_csv(filePath)
     else:
-        raise FileNotFoundError(f"The following file cannot not found: {filePath}")
-    
+        raise FileNotFoundError(f"The following file cannot not found: {filePath}.")
+    meanPath=os.path.join(dir, f"{opt}_posterior_mean_{sbjID}.csv")
+    if os.path.exists(meanPath):
+        means=np.loadtxt(meanPath, delimiter=',')
+    else:
+        raise FileNotFoundError(f"The following file cannot be found: {meanPath}.")
+    stdPath=os.path.join(dir, f"{opt}_posterior_std_{sbjID}.csv")
+    if os.path.exists(stdPath):
+        stds=np.loadtxt(stdPath, delimiter=',')
+    else:
+        raise FileNotFoundError(f"The following file cannot be found: {stdPath}.")
+
     gns=df['given_number'].to_numpy()
     ests=df['estimation'].to_numpy()
 
@@ -27,16 +37,23 @@ def plotStdFitGPAL(figsize: Tuple[int, int], constant_value:float, cv_range:Boun
     #kernel=RBF(length_scale, ls_range)+WhiteKernel(noise_level, nl_range)
     gpr=GaussianProcessRegressor(kernel, normalize_y=True, n_restarts_optimizer=100)
 
-    for ti in range(1,len(gns)):
-        gpr.fit(np.expand_dims(gns[:ti], -1), ests[:ti])
-    
+    for ti in range(trial_idx):
+        gpr.fit(np.expand_dims(gns[:ti+1], -1), ests[:ti+1])
+        
     print(f"get_params: {gpr.kernel_.get_params()}")
     #print(f"length_scale: {np.exp(gpr.kernel_.k2.theta).item()}")
     post_mean, post_std = gpr.predict(np.expand_dims(x_pred, -1), return_std=True)
+    maxStdDesign=float(5*np.argmax(post_std)+5)
+    cv=gpr.kernel_.k1.k1.constant_value
+    ls=gpr.kernel_.k1.k2.length_scale
+    nl=gpr.kernel_.k2.noise_level
+    title=f"Subject #{sbjID}, Trial #{trial_idx-1}\n constant_value = {cv:.4f},  length_scale = {ls:.4f},  noise_level = {nl:.4f}"
+    titleLeft=f"Trial #{trial_idx-1}"
+    titleRight=f"Trial #{trial_idx}"
+    #plotStd1DCompare(figsize, gns[:trial_idx], x_pred, ests[:trial_idx], means[trial_idx-1], stds[trial_idx-1], post_mean, post_std,
+    #           "Given Number", "Estimate", title=title, titleLeft=titleLeft, titleRight=titleRight, sigma_coef=1.0, maxStdDesign=maxStdDesign)
 
-    plotStd1D(figsize, gns, x_pred, ests, post_mean, post_std,
-               "Given Number", "Estimate", f"Subject #{sbjID}, Trial #0 - #{trial_idx}", sigma_coef=1.0)
-    
+    plotStd1D(figsize, gns[:trial_idx], x_pred, ests[:trial_idx], post_mean, post_std, 'Given Number', 'Estiamte', title, 1.0)
     #plt.subplot(1,2,2)
     #plotEstim1D(figsize, gns, ests, "Given Number", "Estimate", 
     #            f"Given Number and Estimates: Subject #{sbjID}")
@@ -97,20 +114,20 @@ def compare3(figsize:Tuple[int, int], dir:str, sbjID:int, x_pred:NDArray):
 
         
 if __name__=="__main__":
-    figsize=(12,8)
+    figsize=(16, 8)
     n_trials=20
     x_pred=np.linspace(5, 500, (500-5)//5+1)
-    sbjID=25080815
+    sbjID=25081116
     opt='gpal'
     dir=os.path.join('experiment_results', f'participant_{sbjID}')
     #dir='results'
 
     constant_value=1.0
     cv_range=(1e-5, 1e5)
-    length_scale=100.0
+    length_scale=1.0
     ls_range=(1e-5, 1e5)
     noise_level=0.05
     nl_range=(1e-5, 1e1)
     plotStdFitGPAL(figsize, constant_value, cv_range, length_scale, ls_range, noise_level, nl_range, 
-                   dir, sbjID, x_pred, trial_idx=n_trials-1)
+                   dir, sbjID, x_pred, trial_idx=19+1)
     #plotFreq(figsize, opt, dir, n_trials, bin=10, ranges=(0.0, 500.0), mode='sum')#

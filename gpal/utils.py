@@ -312,10 +312,9 @@ def argsConstructor(N:int, kernelTypeIdx:list[int], paramsList:list[list]):
     
     return typeKernel, paramKernel
 
-
-
-def plotStd1D(figsize:Tuple[int, int], X_fit:npt.NDArray, X_pred:npt.NDArray, y_fit:npt.NDArray, y_mean:npt.NDArray,
-         y_std:npt.NDArray, xlabel:str, ylabel:str, title:str, sigma_coef:float=1.0):
+def plotStd1D(figsize:Tuple[int, int], X_fit:npt.NDArray, X_pred:npt.NDArray, 
+              y_fit:npt.NDArray, y_mean:npt.NDArray, y_std:npt.NDArray, 
+              xlabel:str, ylabel:str, title:str, sigma_coef:float=1.0):
     if any([not isinstance(fs, int) for fs in figsize]):
         raise ValueError(f"Elements of figsize should be an int value.")
     if len(figsize)!=2:
@@ -355,14 +354,94 @@ def plotStd1D(figsize:Tuple[int, int], X_fit:npt.NDArray, X_pred:npt.NDArray, y_
     if not isinstance(title, str):
         raise TypeError(f"title should be a string value.")
 
+
     plt.figure(figsize=figsize)
     plt.scatter(X_fit, y_fit, c='black', label='Data')
-    plt.plot(X_pred, y_mean, label="Prediction")
-    plt.fill_between(X_pred.ravel(), y_mean-sigma_coef*y_std, y_mean+sigma_coef*y_std, alpha=0.3, label="Uncertainty")
+    plt.plot(X_pred, y_mean, label="Prediction", linewidth=2.5, color='black')
+    plt.fill_between(X_pred.ravel(), y_mean-sigma_coef*y_std, y_mean+sigma_coef*y_std, alpha=0.3, label='Uncertainty')
+    plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    plt.title(title)
-    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+def plotStd1DCompare(figsize:Tuple[int, int], X_fit:npt.NDArray, X_pred:npt.NDArray, 
+              y_fit:npt.NDArray, y_mean:npt.NDArray, y_std:npt.NDArray, 
+              y_mean_after:npt.NDArray, y_std_after:npt.NDArray,
+              xlabel:str, ylabel:str, title:str, 
+              titleLeft:str, titleRight:str, maxStdDesign:float, sigma_coef:float=1.0):
+    if any([not isinstance(fs, int) for fs in figsize]):
+        raise ValueError(f"Elements of figsize should be an int value.")
+    if len(figsize)!=2:
+        raise ValueError(f"figsize should be of length 2.")
+    if not isinstance(X_fit, np.ndarray):
+        raise TypeError(f"X_fit should be a numpy array.")
+    if X_fit.ndim!=1:
+        raise ValueError(f"X_fit should be a 1D array.")
+    if not isinstance(X_pred, np.ndarray):
+        raise TypeError(f"X_pred should be a numpy array.")
+    if X_pred.ndim!=1:
+        raise ValueError(f"X_pred should be a 1D array.")
+    if not isinstance(y_fit, np.ndarray):
+        raise TypeError(f"y_fit should be a numpy array.")
+    if y_fit.ndim!=1:
+        raise ValueError(f"y_fit should be a 1D array.")
+    if not isinstance(y_mean, np.ndarray):
+        raise TypeError(f"y_mean should be a numpy array.")
+    if y_mean.ndim!=1:
+        raise ValueError(f"y_mean should be a 1D array.")
+    if not isinstance(y_std, np.ndarray):
+        raise TypeError(f"y_std should be a numpy array.")
+    if y_std.ndim!=1:
+        raise ValueError(f"y_std should be a 1D array.")
+    if not isinstance(y_mean_after, np.ndarray):
+        raise TypeError(f"y_mean_after should be a numpy array.")
+    if y_mean_after.ndim!=1:
+        raise ValueError(f"y_mean_after should be a 1D array.")
+    if not isinstance(y_std, np.ndarray):
+        raise TypeError(f"y_std_after should be a numpy array.")
+    if y_std_after.ndim!=1:
+        raise ValueError(f"y_std_after should be a 1D array.")
+    if X_fit.shape[0]!=y_fit.shape[0]:
+        raise ValueError(f"X_fit and y_fit should have equal length, got {X_fit.shape[0]} and {y_fit.shape[0]}.")
+    if X_pred.shape[0]!=y_mean.shape[0]:
+        raise ValueError(f"X_pred and y_mean should have equal length, got {X_pred.shape[0]} and {y_mean.shape[0]}.")
+    if X_pred.shape[0]!=y_std.shape[0]:
+        raise ValueError(f"X_pred and y_std should have equal length, got {X_pred.shape[0]} and {y_std.shape[0]}.")
+    if not isinstance(maxStdDesign, float):
+        raise TypeError(f"maxGN should be a float value.")
+    if sigma_coef<0:
+        raise ValueError(f"sigma_coef should be non-negative, got {sigma_coef}.")
+    if not isinstance(xlabel, str):
+        raise TypeError(f"xlabel should be a string value.")
+    if not isinstance(ylabel, str):
+        raise TypeError(f"ylabel should be a string value.")
+    if not isinstance(title, str):
+        raise TypeError(f"title should be a string value.")
+    if not isinstance(titleLeft, str):
+        raise TypeError(f"titleLeft should be a string value.")
+    if not isinstance(titleRight, str):
+        raise TypeError(f"titleRight should be a string value.")
+
+
+    fig, (ax1, ax2)=plt.subplots(1,2, figsize=figsize)
+    
+    ax1.scatter(X_fit[:-1], y_fit[:-1], c='black', label='Data')
+    ax1.plot(X_pred, y_mean, label="Prediction", linewidth=2.5, color='black')
+    ax1.fill_between(X_pred.ravel(), y_mean-sigma_coef*y_std, y_mean+sigma_coef*y_std, alpha=0.3, label='Uncertainty')
+    ax1.axvline(x=X_fit[-1], color='green', linestyle='--', linewidth=3)
+    ax1.set_title(titleLeft)
+
+
+    ax2.scatter(X_fit, y_fit, c='black')
+    ax2.plot(X_pred, y_mean_after, linewidth=2.5, color='black')
+    ax2.fill_between(X_pred.ravel(), y_mean_after-sigma_coef*y_std_after, y_mean_after+sigma_coef*y_std_after, alpha=0.3)
+    ax2.scatter(X_fit[-1], y_fit[-1], c='red')
+    ax2.axvline(x=maxStdDesign, color='green', linestyle='--', linewidth=3)
+    ax2.set_title(titleRight)
+
+    fig.suptitle(title)
+
     plt.tight_layout()
     plt.show()
 
