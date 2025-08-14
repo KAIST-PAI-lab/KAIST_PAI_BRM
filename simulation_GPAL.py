@@ -1,20 +1,24 @@
 # %%
+import os
 import random
 import warnings
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import psutil
 import yaml
 from scipy.optimize import minimize
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 from sklearn.gaussian_process.kernels import ConstantKernel as C
+from sklearn.gaussian_process.kernels import WhiteKernel
+from sklearn.metrics import mean_squared_error
 from tqdm import tqdm
 
 import simulation_NLE.psychometric_functions as psy_funcs
 
-print("Initiating GPAL simulation")
+print("Initiating GPAL Simulation")
 
 sim_config_path = sim_config_path = (
     Path(__file__).parent / "simulation_NLE" / "simulation_config.yaml"
@@ -70,8 +74,26 @@ bic_list = []
 
 given_number_first = random.randint(1, N_MAX)
 given_number_list.append(given_number_first)
+x_range = np.linspace(0, N_MAX, N_MAX)
+
+colors = ["red", "orange", "blue", "purple"]
+mse_list = []
+
+
+kernel = RBF(length_scale=2.0) + WhiteKernel(
+    noise_level=0.05, noise_level_bounds=(1e-10, 1e1)
+)
+
+gp = GaussianProcessRegressor(kernel=kernel, normalize_y=True, n_restarts_optimizer=100)
+
 
 for _ in tqdm(range(N_TRIALS)):
+
+    process = psutil.Process(os.getpid())
+    mem_bytes = process.memory_info().rss  # 현재 사용 중인 물리 메모리 (bytes)
+    mem_mb = mem_bytes / (1024**2)  # MB 단위 변환
+    print(f"Memory usage: {mem_mb:.2f} MB")
+
     simulated_response = true_model_simulate_response(
         **true_params, given_number=given_number_list[-1]
     )
@@ -90,20 +112,13 @@ for _ in tqdm(range(N_TRIALS)):
     # target_kernel = C(output_variance, constant_value_bounds="fixed") * RBF(
     #     length_scale=length_scale, length_scale_bounds="fixed"
     # )
-    target_kernel = C(output_variance) * RBF(length_scale=length_scale)
+    # target_kernel = C(output_variance) * RBF(length_scale=length_scale)
 
     # Fit GP with the selected kernel
     X = np.array(given_number_list).reshape(-1, 1)
     print(X)
     y = np.array(simulated_response_list)
     print(y)
-
-    gp = GaussianProcessRegressor(
-        kernel=target_kernel,
-        alpha=error_variance,
-        normalize_y=True,
-        n_restarts_optimizer=5,
-    )
 
     gp.fit(X, y)
     log_marginal_likelihood = gp.log_marginal_likelihood()
@@ -222,19 +237,68 @@ for _ in tqdm(range(N_TRIALS)):
 
     bic_list.append(bic)
 
+    # GP mean function estimation & the distance to the true function
+    sigma = SIM_CONFIG["parameter_lists"]["params_" + true_model_name]["param_noise"]
+
+    x_train = [int(num) for num in given_number_list]
+    x_train = np.array(x_train).reshape(-1, 1)
+
+    y_train = [int(num) for num in simulated_response_list]
+    y_train = np.array(y_train)
+
+    gp.fit(x_train, y_train)
+
+    x_range_2d = np.linspace(1, N_MAX, N_MAX).reshape(-1, 1)
+
+    gp_mean_function = gp.predict(x_range_2d)
+    true_function_outputs = true_model(**true_params_noiseless, given_number=x_range)
+    true_function_outputs = true_function_outputs.clip(0, N_MAX)
+
+    mse = mean_squared_error(true_function_outputs, gp_mean_function)
+    mse_list.append(mse)
+    number_current_trial = len(mse_list)
+    # GP mean function & true function visualized
+    plt.figure(figsize=(6, 5))
+    plt.plot(x_range, true_function_outputs, color=colors[0], label="True Function")
+    plt.plot(x_range, gp_mean_function, color=colors[1], label="GP Mean Function")
+    plt.xlabel("Given Number")
+    plt.ylabel("Estimated Value")
+    plt.title(f"N_TRIALS={len(mse_list)}, sigma={sigma}")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    # plt.savefig(f"GP_func_and_true_func_trial_{number_current_trial}.png")
+    plt.show()
+
+    # MSE values and number of trials
+    plt.figure(figsize=(6, 5))
+    plt.plot(range(1, number_current_trial + 1), mse_list, marker="o")
+    plt.title(f"MSE values over trials, sigma={sigma}")
+    plt.xlabel("N_TRIALS")
+    plt.xticks(range(1, number_current_trial + 1))
+    plt.ylabel("MSE")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+    # append given number
     print("next given number =", next_design)
     given_number_list.append(next_design)
 
 
-x = list(range(1, len(bic_list) + 1))
-y = bic_list
+# %%
 
-plt.plot(x, y)
-plt.xlabel("Trial")
-plt.ylabel("BIC")
-plt.title("BIC over Trials")
-plt.grid(True)
-plt.show()
+
+# see BIC changes over trials
+# x = list(range(1, len(bic_list) + 1))
+# y = bic_list
+
+# plt.plot(x, y)
+# plt.xlabel("Trial")
+# plt.ylabel("BIC")
+# plt.title("BIC over Trials")
+# plt.grid(True)
+# plt.show()
 
 with sim_config_path.open(encoding="utf-8") as f:
     SIM_CONFIG = yaml.safe_load(f)
@@ -242,9 +306,7 @@ model_names = SIM_CONFIG["function_names"]
 
 BICs = []
 
-colors = ["red", "orange", "blue", "purple"]
 
-x_range = np.linspace(0, N_MAX, N_MAX)
 for n, model_name in enumerate(model_names):
     print(model_name)
     model_standard = getattr(psy_funcs, model_name)
@@ -298,7 +360,6 @@ for n, model_name in enumerate(model_names):
     y_pred = model_standard(*optimized_parameters[:-1], x_range)
 
     plt.plot(x_range, y_pred, color=colors[n], label=f"{model_name}")
-
     plt.xlabel("Given Number")
     plt.ylabel("Estimate")
     plt.title("Models fitted to the simulated data")
