@@ -59,7 +59,11 @@ def gpal_optimize(gpr:GaussianProcessRegressor, nDV: int, dvs:npt.NDArray[np.flo
 
     dv_cands=[]
     for i in range(nDV):
-        dv_cands.append(np.linspace(dvSpecs[i][0], dvSpecs[i][1], dvSpecs[i][2]))
+        start=dvSpecs[i][0]
+        end=dvSpecs[i][1]
+        interval=dvSpecs[i][2]
+        num=int((end-start)/interval)+1
+        dv_cands.append(np.linspace(start, end, num))
 
     grids=list(np.meshgrid(*dv_cands, indexing='ij'))
 

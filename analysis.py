@@ -47,13 +47,15 @@ def plotStdFitGPAL(figsize: Tuple[int, int], constant_value:float, cv_range:Boun
     cv=gpr.kernel_.k1.k1.constant_value
     ls=gpr.kernel_.k1.k2.length_scale
     nl=gpr.kernel_.k2.noise_level
-    title=f"Subject #{sbjID}, Trial #{trial_idx-1}\n constant_value = {cv:.4f},  length_scale = {ls:.4f},  noise_level = {nl:.4f}"
+    #title=f"Subject #{sbjID}, Trial #{trial_idx-1}\n constant_value = {cv:.4f},  length_scale = {ls:.4f},  noise_level = {nl:.4f}"
+    title=""
     titleLeft=f"Trial #{trial_idx-1}"
     titleRight=f"Trial #{trial_idx}"
-    #plotStd1DCompare(figsize, gns[:trial_idx], x_pred, ests[:trial_idx], means[trial_idx-1], stds[trial_idx-1], post_mean, post_std,
-    #           "Given Number", "Estimate", title=title, titleLeft=titleLeft, titleRight=titleRight, sigma_coef=1.0, maxStdDesign=maxStdDesign)
+    fontsize=24
+    plotStd1DCompare(figsize, fontsize, gns[:trial_idx], x_pred, ests[:trial_idx], means[trial_idx-1], stds[trial_idx-1], post_mean, post_std,
+               "Given Number", "Estimate", title=title, titleLeft=titleLeft, titleRight=titleRight, sigma_coef=1.0, maxStdDesign=maxStdDesign)
 
-    plotStd1D(figsize, gns[:trial_idx], x_pred, ests[:trial_idx], post_mean, post_std, 'Given Number', 'Estiamte', title, 1.0)
+    #plotStd1D(figsize, gns[:trial_idx], x_pred, ests[:trial_idx], post_mean, post_std, 'Given Number', 'Estiamte', title, 1.0)
     #plt.subplot(1,2,2)
     #plotEstim1D(figsize, gns, ests, "Given Number", "Estimate", 
     #            f"Given Number and Estimates: Subject #{sbjID}")
@@ -76,48 +78,12 @@ def plotFreq(figsize:Tuple[int, int], dir:str, opt:str, n_trials: int, bin:int, 
     plotFreq1D(figsize, N, gns, bin, ranges, mode='average', xlabel="Given Number (Optimized)", title=f"Design selection frequencies ({mode})")
 
 
-def compare3(figsize:Tuple[int, int], dir:str, sbjID:int, x_pred:NDArray):
-    opts=['gpal', 'ado', 'random']
-    colors=['orange', 'black', 'green']
-    plt.figure()
-    for i, opt in enumerate(opts):
-        if i==0:
-            meanPath=os.path.join(dir, f"{opt}_posterior_mean_{sbjID}.csv")
-            if os.path.exists(meanPath):
-                meanArr=np.loadtxt(meanPath, delimiter=',')
-            else:
-                raise FileNotFoundError(f"The following file does not exist: {meanPath}")
-            stdPath=os.path.join(dir, f"{opt}_posterior_std_{sbjID}.csv")
-            if os.path.exists(stdPath):
-                stdArr=np.loadtxt(stdPath, delimiter=',')
-        else:
-            raise FileNotFoundError(f"The following file cannot be found: {filePath}")
-        gns=df['given_number'].to_numpy()
-        if i==0:
-            estMean=df['posterior_mean'].to_numpy()
-        argIdx=np.argsort(gns)
-        gns=gns[argIdx]
-        estMean=estMean[argIdx]
-
-        N=len(gns)
-        idx=np.arange(N)
-        gns_x=interp1d(idx, gns, kind='slinear')
-        est_y=interp1d(idx, est, kind='slinear')
-
-        idx_interp=np.linspace(0, N-1, 10*(N-1))
-        gns_interp=gns_x(idx_interp)
-        est_interp=est_y(idx_interp)
-
-        plt.plot(gns_interp, est_interp, color=colors[i])
-    plt.xlabel("Given Number")
-    plt.ylabel("Estimates")
-
         
 if __name__=="__main__":
-    figsize=(16, 8)
+    figsize=(18, 6)
     n_trials=20
     x_pred=np.linspace(5, 500, (500-5)//5+1)
-    sbjID=25081116
+    sbjID=25081110
     opt='gpal'
     dir=os.path.join('experiment_results', f'participant_{sbjID}')
     #dir='results'
@@ -129,5 +95,5 @@ if __name__=="__main__":
     noise_level=0.05
     nl_range=(1e-5, 1e1)
     plotStdFitGPAL(figsize, constant_value, cv_range, length_scale, ls_range, noise_level, nl_range, 
-                   dir, sbjID, x_pred, trial_idx=19+1)
+                   dir, sbjID, x_pred, trial_idx=6+1)
     #plotFreq(figsize, opt, dir, n_trials, bin=10, ranges=(0.0, 500.0), mode='sum')#

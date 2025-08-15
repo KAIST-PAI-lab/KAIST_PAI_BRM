@@ -57,8 +57,7 @@ if __name__=="__main__":
     n_restarts_optimizer=config.get('n_restarts_optimizer')     # The number of restarts of the optimizer to find the optimal kernel parameters.
     type_kernels_index=config.get('type_kernels_index')         # A list of indices of kernels to be combined. Refer to 'kernelTypeDic' above.
     parameters_list=config.get('parameters_list')               # A list of list of arguments to be fed to each kernel.
-    multiplied_indices=config.get('multiplied_indices')         # A list of lists indicating the kernels to be multiplied.
-    summed_indices=config.get('summed_indices')                 # A list of lists indicating the kernels to be summed.
+    format=config.get('format')                                 # A string indicating how the kernels should be combined.
     gpr_random_state=config.get('gpr_random_state')             # A parameter determining random number generation in initializing the centers of the GP regressor.
     
     
@@ -72,7 +71,7 @@ if __name__=="__main__":
     save_models_dir=config.get('save_models_dir')               # A directory to store the trained Gaussian process regressor models.
 
 
-    
+     
 
     warnings.filterwarnings("ignore")
     if seed is not None:
@@ -82,8 +81,7 @@ if __name__=="__main__":
     type_kernels, param_dics=argsConstructor(N=n_kernels, 
                                              kernelTypeIdx=type_kernels_index, 
                                              paramsList=parameters_list)
-    kernel, gpr=GPRInstance(nKernel=n_kernels, typeKernel=type_kernels, paramKernel=param_dics, 
-                            mulIdx=multiplied_indices, sumIdx=summed_indices, 
+    kernel, gpr=GPRInstance(typeKernel=type_kernels, paramKernel=param_dics, format='k1*k2+k3', 
                             alpha=alpha, n_restarts_optimizer=n_restarts_optimizer, 
                             normalize_y=normalize_y, random_state=gpr_random_state)
     print(f"GPAL Hyperparameters: {kernel.get_params()}")

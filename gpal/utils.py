@@ -365,7 +365,7 @@ def plotStd1D(figsize:Tuple[int, int], X_fit:npt.NDArray, X_pred:npt.NDArray,
     plt.tight_layout()
     plt.show()
 
-def plotStd1DCompare(figsize:Tuple[int, int], X_fit:npt.NDArray, X_pred:npt.NDArray, 
+def plotStd1DCompare(figsize:Tuple[int, int], fontsize:int, X_fit:npt.NDArray, X_pred:npt.NDArray, 
               y_fit:npt.NDArray, y_mean:npt.NDArray, y_std:npt.NDArray, 
               y_mean_after:npt.NDArray, y_std_after:npt.NDArray,
               xlabel:str, ylabel:str, title:str, 
@@ -374,6 +374,10 @@ def plotStd1DCompare(figsize:Tuple[int, int], X_fit:npt.NDArray, X_pred:npt.NDAr
         raise ValueError(f"Elements of figsize should be an int value.")
     if len(figsize)!=2:
         raise ValueError(f"figsize should be of length 2.")
+    if not isinstance(fontsize, int):
+        raise TypeError(f"fontsize should be an integer value.")
+    if fontsize<=0:
+        raise ValueError(f"fontsize should be a positive integer.")
     if not isinstance(X_fit, np.ndarray):
         raise TypeError(f"X_fit should be a numpy array.")
     if X_fit.ndim!=1:
@@ -430,7 +434,7 @@ def plotStd1DCompare(figsize:Tuple[int, int], X_fit:npt.NDArray, X_pred:npt.NDAr
     ax1.plot(X_pred, y_mean, label="Prediction", linewidth=2.5, color='black')
     ax1.fill_between(X_pred.ravel(), y_mean-sigma_coef*y_std, y_mean+sigma_coef*y_std, alpha=0.3, label='Uncertainty')
     ax1.axvline(x=X_fit[-1], color='green', linestyle='--', linewidth=3)
-    ax1.set_title(titleLeft)
+    ax1.set_title(titleLeft, fontsize=fontsize)
 
 
     ax2.scatter(X_fit, y_fit, c='black')
@@ -438,9 +442,9 @@ def plotStd1DCompare(figsize:Tuple[int, int], X_fit:npt.NDArray, X_pred:npt.NDAr
     ax2.fill_between(X_pred.ravel(), y_mean_after-sigma_coef*y_std_after, y_mean_after+sigma_coef*y_std_after, alpha=0.3)
     ax2.scatter(X_fit[-1], y_fit[-1], c='red')
     ax2.axvline(x=maxStdDesign, color='green', linestyle='--', linewidth=3)
-    ax2.set_title(titleRight)
+    ax2.set_title(titleRight, fontsize=fontsize)
 
-    fig.suptitle(title)
+    fig.suptitle(title, fontsize=fontsize)
 
     plt.tight_layout()
     plt.show()

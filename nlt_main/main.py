@@ -158,9 +158,9 @@ def trial(number, dot_size, visuals, max_number=100):
 
     return res
 
-def run_NLE_gpal(gpr, records, tracks, block_len, block_idx, trial_idx, visuals, return_std=True, return_cov=False, size_control=False):
+def run_NLE_gpal(gpr, records, block_len, trial_idx, visuals,
+                  return_std=True, return_cov=False, size_control=False):
     
-    block_start=block_len*block_idx
     
     max_number_candidates = [500]
     if trial_idx==0:
@@ -171,10 +171,10 @@ def run_NLE_gpal(gpr, records, tracks, block_len, block_idx, trial_idx, visuals,
         lml=0
     else:
         mask=lambda X:X<=500
-        dv1_spec=[5, 500, int((500-5)/5+1)]
+        dv1_spec=[5, 500, 5]
         dv_spec=[dv1_spec]
-        dvs=records[:-1, block_start:block_start+trial_idx]
-        est=records[-1, block_start:block_start+trial_idx]
+        dvs=records[:-1, :trial_idx]
+        est=records[-1, :trial_idx]
         result, pMean, pStd, lml = gpal_optimize(gpr=gpr, 
                                                  nDV=records.shape[0]-1,
                                                  dvs=dvs, 
@@ -189,20 +189,18 @@ def run_NLE_gpal(gpr, records, tracks, block_len, block_idx, trial_idx, visuals,
     res = trial(number, dot_size, visuals, max_number=max_number)
     
     res[0]['size_control'] = 1 if size_control else 0
-    records[0][block_start+trial_idx]=res[0]['given_number']
-    records[1][block_start+trial_idx]=res[0]['estimation']
-    tracks[0][block_start+trial_idx]=pMean
-    tracks[1][block_start+trial_idx]=pStd
+    records[0][trial_idx]=res[0]['given_number']
+    records[1][trial_idx]=res[0]['estimation']
     res[0]['posterior_mean'] = np.max(pMean)
     res[0]['posterior_std'] = np.max(pStd)
     res[0]['log_marginal_likelihood'] = lml
     
     if trial_idx==0:
-        constant_value=np.exp(gpr.kernel.k1.theta[0])
-        length_scale=np.exp(gpr.kernel.k2.theta[0])
+        constant_value=np.exp(gpr.kernel.k1.k1.theta[0])
+        length_scale=np.exp(gpr.kernel.k1.k2.theta[0])
     else:
-        constant_value=np.exp(gpr.kernel_.k1.theta[0])
-        length_scale=np.exp(gpr.kernel_.k2.theta[0])
+        constant_value=np.exp(gpr.kernel_.k1.k1.theta[0])
+        length_scale=np.exp(gpr.kernel_.k1.k2.theta[0])
     res[0]['constant_value']=constant_value
     res[0]['length_scale'] = length_scale
     
@@ -254,16 +252,15 @@ def run_gpal_block(gpr, visuals, n_trials, n_DVs, return_std=True, return_cov=Fa
     block_len = n_trials * 2  # Two trials per block
     num_cands=int((500-5)/5+1)
     record_array=np.zeros((n_DVs+1, block_len))
-    track_array=np.zeros((2, block_len, num_cands))
     block_res = []
     size_control_list = [True]*n_trials + [False]*n_trials  # Second block with variable dot size
     random.shuffle(size_control_list)  # Shuffle the order of blocks
 
     for idx, size_control_flag in enumerate(size_control_list):
-        results=run_NLE_gpal(gpr, record_array, track_array, block_len, 0, idx, visuals, return_std, return_cov, size_control=size_control_flag)
+        results=run_NLE_gpal(gpr, record_array, block_len, idx, visuals, return_std, return_cov, size_control=size_control_flag)
         block_res.extend(results)
 
-    return block_res, track_array 
+    return block_res
 
 def run_ado_block(engine, visuals, n_trials):
     """
@@ -327,10 +324,10 @@ def run_experiment(config, gpr, engine, visuals, info):
     num_cands=int((500-5)/5+1)
 
     record_array_pre=np.zeros((n_DVs+1, 5))
-    track_array_pre=np.zeros((2, 5, num_cands))
     # Run the pre-NLE block (test trials)
     for preIdx in range(5):
-        results = run_NLE_gpal(gpr, record_array_pre, track_array_pre, block_len, 0, 0, visuals, return_std, return_cov) # for 5 test trials
+        results = run_NLE_gpal(gpr, record_array_pre, block_len, 
+                                0, visuals, return_std, return_cov) # for 5 test trials
 
     test_text = "연습이 종료되었습니다. \n 궁금한 점이 있으시면 질문해주세요."  
     show_instructions(visuals, test_text) 
@@ -342,7 +339,8 @@ def run_experiment(config, gpr, engine, visuals, info):
     if pid % 3 == 0:
         # GPAL -> ADO -> Random
         print("Running GPAL block...")
-        block_res, track_array = run_gpal_block(gpr, visuals, num_trials, n_DVs, return_std, return_cov)
+        block_res = run_gpal_block(gpr, visuals, num_trials, n_DVs, 
+                                                return_std, return_cov)
         
         text = "첫 번째 세션이 종료되었습니다. \n 준비가 되면 스페이스바를 눌러 다음 세션을 시작하세요."
         prompt = visual.TextStim(win, text=text, color='black', wrapWidth=1500, pos=(0, 0), height=30)
@@ -383,7 +381,7 @@ def run_experiment(config, gpr, engine, visuals, info):
         event.waitKeys(keyList=['space'])
 
         print("Running GPAL block...")
-        block_res, track_array = run_gpal_block(gpr, visuals, num_trials, n_DVs, return_std, return_cov)
+        block_res = run_gpal_block(gpr, visuals, num_trials, n_DVs, return_std, return_cov)
 
     else:
         # Random -> GPAL -> ADO
@@ -397,7 +395,7 @@ def run_experiment(config, gpr, engine, visuals, info):
         event.waitKeys(keyList=['space'])
 
         print("Running GPAL block...")
-        block_res, track_array = run_gpal_block(gpr, visuals, num_trials, n_DVs, return_std, return_cov)
+        block_res = run_gpal_block(gpr, visuals, num_trials, n_DVs, return_std, return_cov)
 
         text = "두 번째 세션이 종료되었습니다. \n 준비가 되면 스페이스바를 눌러 다음 세션을 시작하세요."
         prompt = visual.TextStim(win, text=text, color='black', wrapWidth=1500, pos=(0, 0), height=30)
@@ -425,12 +423,6 @@ def run_experiment(config, gpr, engine, visuals, info):
 
     filename = f"random_results_{info['Participant ID']}.csv"
     save_results(save_results_dir, random_result, info, filename=filename)
-
-    filename = f"gpal_posterior_mean_{info['Participant ID']}.csv"
-    np.savetxt(os.path.join(save_results_dir, filename), track_array[0], delimiter=',')
-    filename = f"gpal_posterior_std_{info['Participant ID']}.csv"
-    np.savetxt(os.path.join(save_results_dir, filename), track_array[1], delimiter=',')
-
 
     sbj=f"{info['Participant ID']}"
     save_models_dir=config.get('save_models_dir')

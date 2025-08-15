@@ -16,8 +16,7 @@ type_kernels_index: [0,6,8]         # A list of indices of kernels to be combine
 parameters_list: [[1.0], # A list of list of arguments to be fed to each kernel.
                   [1.0],
                   [0.05]]
-multiplied_indices: [[0], [1]]    # A list of lists indicating the kernels to be multiplied.
-summed_indices: [[1], [2]]          # A list of lists indicating the kernels to be summed.
+format: 'k1*k2+k3'
 gpr_random_state: null            # A parameter determining random number generation in initializing the centers of the GP regressor.
 
 

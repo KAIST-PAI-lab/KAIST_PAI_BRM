@@ -6,13 +6,17 @@ from typing import Optional
 from typing import Union
 from typing import List
 import numpy.typing as npt
+import re
 
 ## nKernel: The Number of kernel instances to be combined
 ## typeKernel: List of types of each kernel instance
 ## paramKernel: List of parameters for each kernel instance
-def GPRInstance(nKernel:int, typeKernel:list[str], paramKernel:list[dict], mulIdx:list[list[int]], sumIdx:list[list[int]], 
-                alpha:Union[float, npt.NDArray[np.float64]]=1e-10, normalize_y:bool=True, n_restarts_optimizer:int=0, 
+def GPRInstance(typeKernel:list[str], paramKernel:list[dict], format:str, 
+                alpha:Union[float, npt.NDArray[np.float64]]=1e-10, 
+                normalize_y:bool=True, n_restarts_optimizer:int=0, 
                 random_state:Optional[Union[int, np.random.RandomState]]=None):
+    if not isinstance(format, str):
+        raise TypeError(f"format should be a string, got {type(format).__name__}")
     if not isinstance(alpha, Union[float, np.ndarray]):
         raise TypeError(f"alpha should be float or numpy array: got {type(alpha).__name__}.")
     if isinstance(alpha, float):
@@ -34,7 +38,7 @@ def GPRInstance(nKernel:int, typeKernel:list[str], paramKernel:list[dict], mulId
             raise TypeError(f"random_state should be a None, an int value, or a RandomState object.")
 
 
-    kBuilder=KernelBuilder(nKernel, typeKernel, paramKernel, mulIdx, sumIdx)
+    kBuilder=KernelBuilder(len(typeKernel), typeKernel, paramKernel, format)
     kernel=kBuilder.create_compound()
     gpr=GaussianProcessRegressor(kernel, alpha=alpha, normalize_y=normalize_y, n_restarts_optimizer=n_restarts_optimizer, random_state=random_state)
     return kernel, gpr
@@ -42,7 +46,7 @@ def GPRInstance(nKernel:int, typeKernel:list[str], paramKernel:list[dict], mulId
 
 ## Adding and multiplying kernel instances are processed after creating all individual kernel instances.
 class KernelBuilder():
-    def __init__(self, nKernel:int, typeKernel:list[str], paramKernel:list[dict], mulIdx:list[list[int]], sumIdx:list[list[int]]):
+    def __init__(self, nKernel:int, typeKernel:list[str], paramKernel:list[dict], format:str):
         if not isinstance(nKernel, int):
             raise TypeError(f"nKernel should be an int value, got {type(nKernel).__name__}.")
         if nKernel<=0:
@@ -61,53 +65,31 @@ class KernelBuilder():
             raise TypeError(f"paramKernel should contain dict values, got {type(typ).__name__}.")
         if len(paramKernel)!=nKernel:
             raise ValueError(f"paramKernel should be of length {nKernel}, got {len(paramKernel)}.")
-        if not isinstance(mulIdx, list):
-            raise TypeError(f"mulIdx should be a list, got {type(mulIdx).__name__}.")
-        if len(mulIdx)!=2:
-            raise ValueError(f"mulIdx should contain 2 lists, got {len(mulIdx)}.")
-        if not isinstance(mulIdx[0], list):
-            raise TypeError(f"mulIdx should contain lists, got {type(mulIdx[0]).__name__} at 0-th index.")
-        if not isinstance(mulIdx[1], list):
-            raise TypeError(f"mulIdx should contain lists, got {type(mulIdx[1]).__name__} at 1-th index.")
-        if len(mulIdx[0])!=len(mulIdx[1]):
-            raise ValueError(f"mulIdx should contain two lists of same length, got {len(mulIdx[0])} and {len(mulIdx[1])}.")
-        if not all(isinstance(mi, int) for mi in mulIdx[0]):
-            mIdx0=mulIdx[0]
-            idx=[isinstance(mi, int) for mi in mIdx0].index(False)
-            typ=mIdx0[idx]
-            raise TypeError(f"mulIdx should contain 2 lists with integer elements, got {type(typ).__name__} at {idx}-th index of mulIdx[0].")
-        if not all(isinstance(mi, int) for mi in mulIdx[1]):
-            mIdx1=mulIdx[1]
-            idx=[isinstance(mi, int) for mi in mIdx1].index(False)
-            typ=mIdx1[idx]
-            raise TypeError(f"mulIdx should contain 2 lists with integer elements, got {type(typ).__name__} at {idx}-th index of mulIdx[1].")
-        if not isinstance(sumIdx, list):
-            raise TypeError(f"sumIdx should be a list, got {type(sumIdx).__name__}.")
-        if len(sumIdx)!=2:
-            raise ValueError(f"sumIdx should contain 2 lists, got {len(sumIdx)}.")
-        if not isinstance(sumIdx[0], list):
-            raise TypeError(f"sumIdx should contain lists, got {type(sumIdx[0]).__name__} at 0-th index.")
-        if not isinstance(sumIdx[1], list):
-            raise TypeError(f"sumIdx should contain lists, got {type(sumIdx[1]).__name__} at 1-th index.")
-        if len(sumIdx[0])!=len(sumIdx[1]):
-            raise ValueError(f"sumIdx should contain two lists of same length, got {len(sumIdx[0])} and {len(sumIdx[1])}.")
-        if not all(isinstance(si, int) for si in sumIdx[0]):
-            sIdx0=sumIdx[0]
-            idx=[isinstance(si, int) for si in sIdx0].index(False)
-            typ=sIdx0[idx]
-            raise TypeError(f"sumIdx should contain 2 lists with integer elements, got {type(typ).__name__} at {idx}-th index of sumIdx[0].")
-        if not all(isinstance(si, int) for si in sumIdx[1]):
-            sIdx1=sumIdx[1]
-            idx=[isinstance(si, int) for si in sIdx1].index(False)
-            typ=sIdx1[idx]
-            raise TypeError(f"sumIdx should contain 2 lists with integer elements, got {type(typ).__name__} at {idx}-th index of sumIdx[1].")
+        
+        if not isinstance(format, str):
+            raise TypeError(f"format should be a string, got {type(format).__name__}.")
+        
+        p=re.split(r'(\+|\*)', format)
+        if len(p) != 2*nKernel-1:
+            raise ValueError(f"format should indicate a valid combination of kernel objects.")
+        for i in range(0, (len(p)+1)//2):
+            if int(p[2*i][1:])!=i+1:
+                raise ValueError(f"The i-th operand of the format should be k{i+1}.")
+            
+        q=re.findall(r'\d+', format)
+        idxs=list(map(int, q))
+        if max(idxs)!=nKernel:
+            raise ValueError(f"format should include {nKernel} number of kernel symbols, got {max(idxs)}.")
+        
+        r=re.search(r'[^a-zA-z0-9+*]', format)
+        if r:
+            raise ValueError(f"format should only include alphabet characters, numbers, +, and *.")
         
 
         self.nKernel=nKernel
         self.typeKernel=typeKernel
         self.paramKernel=paramKernel
-        self.mulIdx=mulIdx
-        self.sumIdx=sumIdx
+        self.p=p
 
         self.basicTypes=['ConstantKernel', 'DotProduct', 'ExpSineSquared', 'Exponentiation',
                         'Matern', 'PairwiseKernel', 'RBF', 'RationalQuadratic', 'WhiteKernel']
@@ -122,22 +104,18 @@ class KernelBuilder():
                 kernelElem=self.create(self.typeKernel[n], self.paramKernel[n])
                 self.kernels.append(kernelElem)
 
-            for mn in range(len(self.mulIdx[0])):
-                ## Since two kernels will be popped and one kernel (mulKernel) will be inserted
-                ## The index of the operand kernel decrements for each iteration
-                idx1=self.mulIdx[0][mn]-mn
-                idx2=self.mulIdx[1][mn]-mn
-
-                k1=self.kernels[idx1]  
-                k2=self.kernels[idx2]
-                mulKernel=Product(k1, k2)
-                
-                self.kernels.pop(idx2)
-                self.kernels.pop(idx1)
-                self.kernels.insert(idx1, mulKernel)
-
-            kernel=reduce(lambda k1, k2: k1+k2, self.kernels)
-
+            for i, ex in enumerate(self.p):
+                if ex=="*":  # * is always at the odd index
+                    oper1=self.kernels[(i-1)//2]
+                    oper2=self.kernels[(i+1)//2]
+                    mulK=oper1*oper2
+                    self.kernels.insert((i-1)//2, mulK)
+                    self.kernels.remove(oper1)
+                    self.kernels.remove(oper2)
+                else:
+                    continue
+            kernel=reduce(lambda x,y:x+y, self.kernels)
+            
         self.kernel=kernel
         return self.kernel
     
