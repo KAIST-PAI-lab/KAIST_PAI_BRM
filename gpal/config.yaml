@@ -1,6 +1,6 @@
 ## Arguments related to the experimental environment
 
-n_trials: 10                      # Number of experiment trials for a subject.            
+n_trials: 20                      # Number of experiment trials for a subject.            
 seed: null                           # A random seed value for reproducibility.
 n_DVs: 1                          # The number of design variables subject to optimization.
 
