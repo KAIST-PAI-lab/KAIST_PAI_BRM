@@ -8,9 +8,7 @@ from typing import List
 import numpy.typing as npt
 import re
 
-## nKernel: The Number of kernel instances to be combined
-## typeKernel: List of types of each kernel instance
-## paramKernel: List of parameters for each kernel instance
+
 def GPRInstance(typeKernel:list[str], paramKernel:list[dict], format:str, 
                 alpha:Union[float, npt.NDArray[np.float64]]=1e-10, 
                 normalize_y:bool=True, n_restarts_optimizer:int=0, 

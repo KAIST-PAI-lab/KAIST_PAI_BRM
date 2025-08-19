@@ -1,16 +1,13 @@
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import *
+from sklearn.gaussian_process.kernels import Kernel
+import sklearn.metrics.pairwise
 import numpy as np
 import numpy.typing as npt
+import matplotlib.pyplot as plt
+from sklearn.gaussian_process import GaussianProcessRegressor
 from functools import wraps
 from enum import Enum
-from typing import NamedTuple
-from typing import Optional
-from typing import Union
-from typing import Tuple
-from typing import Callable
+from typing import NamedTuple, Optional, Union, Tuple, Callable
 from scipy.interpolate import interp1d
-import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 
@@ -36,22 +33,22 @@ class prediction(NamedTuple):
 def boundsCheck(arg:BoundsType, tupleType=float, boundMin=0.0, allowed=["fixed"]):
     if isinstance(arg, tuple):
         if len(arg)!=2:
-            raise ValueError("The bounds tuple should be of length 2.")
+            raise ValueError(f"The bounds tuple should be of length 2, got {len(arg)}.")
         if not (isinstance(arg[0], tupleType) and isinstance(arg[1], tupleType)):
-            raise TypeError(f"The bounds values should be of type {tupleType}.")
+            raise TypeError(f"The bound values should be of type {tupleType}.")
         if not (arg[0]>=boundMin and arg[1]>=boundMin):
-            raise ValueError(f"The bounds values should be larger or equal to {boundMin}")
+            raise ValueError(f"The bounds values should be larger or equal to {boundMin}.")
         
     elif isinstance(arg, str):
         if arg not in allowed:
-            raise ValueError(f"The allowed string values for arg2 are {allowed}.")
+            raise ValueError(f"The allowed string values for arg2 are {allowed}, got {arg}.")
         
     else:
-        raise TypeError("arg2 should be either a tuple of float values or a string.")
+        raise TypeError(f"arg2 should be either a tuple of float values or a string, got {type(arg2).__name__}.")
         
 def constantKernelArgs(arg1:float=1.0, arg2:BoundsType=(1e-5, 1e5)):
     if not isinstance(arg1, float):
-        raise TypeError("arg1 should be a float value.")
+        raise TypeError(f"arg1 should be a float value, got {type(arg1).__name__}.")
 
     boundsCheck(arg2)
 
@@ -60,9 +57,9 @@ def constantKernelArgs(arg1:float=1.0, arg2:BoundsType=(1e-5, 1e5)):
 
 def dotproductKernelArgs(arg1:float=1.0, arg2:BoundsType=(1e-5, 1e5)):
     if not isinstance(arg1, float):
-        raise TypeError("arg1 should be a float value.")
+        raise TypeError(f"arg1 should be a float value, got {type(arg1).__name__}.")
     if not arg1>=0:
-        raise ValueError("arg1 should be non-negative.")
+        raise ValueError(f"arg1 should be a non-negative float value, got {arg1}.")
 
     boundsCheck(arg2)
     
@@ -71,14 +68,14 @@ def dotproductKernelArgs(arg1:float=1.0, arg2:BoundsType=(1e-5, 1e5)):
 
 def expsinesquaredKernelArgs(arg1:float=1.0, arg2:float=1.0, arg3:BoundsType=(1e-5, 1e5), arg4:BoundsType=(1e-5, 1e5)):
     if not isinstance(arg1, float):
-        raise TypeError("arg1 should be a float value.")
+        raise TypeError(f"arg1 should be a float value, got {type(arg1).__name__}.")
     if not arg1>0:
-        raise ValueError("arg1 should be positive.")
+        raise ValueError(f"arg1 should be positive, got {arg1}.")
     
     if not isinstance(arg2, float):
-        raise TypeError("arg2 should be a float value.")
+        raise TypeError(f"arg2 should be a float value, got {type(arg1).__name__}.")
     if not arg2>0:
-        raise ValueError("arg2 should be positive.")
+        raise ValueError(f"arg2 should be positive, got {arg2}.")
     
     boundsCheck(arg3)
     boundsCheck(arg4)
@@ -88,51 +85,59 @@ def expsinesquaredKernelArgs(arg1:float=1.0, arg2:float=1.0, arg3:BoundsType=(1e
 
 def exponentiationKernelArgs(arg1:Kernel, arg2:float):
     if not isinstance(arg1, Kernel):
-        raise TypeError("arg1 should be a valid kernel instance.")
+        raise TypeError(f"arg1 should be a valid kernel instance, got the type of {type(arg1).__name__}.")
     if not isinstance(arg2, float):
-        raise TypeError("arg2 should be a float value.")
+        raise TypeError(f"arg2 should be a float value, got {arg2}.")
     
     return {'kernel':arg1, 'exponent':arg2}
 
 
 def maternKernelArgs(arg1:ScalesType=1.0, arg2:BoundsType=(1e-5, 1e5), arg3:float=1.5):
     if not (isinstance(arg1, np.ndarray) or isinstance(arg1, float)):
-        raise TypeError("arg1 should be a 1D numpy array or a float value.")
-    if isinstance(arg1, np.ndarray):
+        raise TypeError(f"arg1 should be a 1D numpy array or a float value, got {type(arg1).__name__}.")
+    elif isinstance(arg1, np.ndarray):
         if arg1.ndim!=1:
-            raise ValueError("A numpy array arg1 should be a 1-D array.")
+            raise ValueError(f"A numpy array arg1 should be a 1-D array, got the shape of {arg1.shape}.")
         if arg1.dtype!=np.float64:
-            raise TypeError("Elements of numpy array arg1 should be of type np.float64, which is a default float type for numpy arrays.")
+            raise TypeError(f"The type of elements of arg1 should be np.float64, got {arg1.dtype}.")
+    else:
+        if arg1<=0:
+            raise ValueError(f"arg1 should be a positive value, got {arg1}.")
 
     boundsCheck(arg2)
 
     if not isinstance(arg3, float):
-        raise TypeError("arg3 should be a float value.")
+        raise TypeError(f"arg3 should be a float value, got {type(arg3).__name__}.")
+    if arg3<=0:
+        raise ValueError(f"arg3 should be a positive value, got {arg3}.")
+    
 
     return {'length_scale':arg1, 'length_scale_bounds':arg2, 'nu': arg3}            
 
 
 def pairwiseArg3(arg3:npFuncType):
     @wraps(arg3)
-    def checker(data1, data2):
+    def checker(data1:npt.NDArray, data2:Optional[npt.NDArray]):
         if not isinstance(data1, np.ndarray):
-            raise TypeError(f"The first argument of arg3 callable should be numpy.ndarray")
-        if not isinstance(data2, np.ndarray):
-            raise TypeError(f"The second argument of arg3 callable should be numpy.ndarray")
+            raise TypeError(f"The first argument of arg3 callable should be a numpy array, got {type(data1).__name__}.")
         if data1.ndim!=2:
-            raise ValueError(f"The first argument of arg3 callable should be a 2-D numpy array, got {data1.shape} as a shape.")
-        if data2.ndim!=2:
-            raise ValueError(f"The second argument of arg3 callable should be a 2-D numpy array, got {data2.shape} as a shape.")
-        if data1.shape[1]!=data2.shape[1]:
-            raise ValueError(f"The two arguments of arg3 callable should have the same length in 1-th dimension, got {data1.shape[1]} and {data2.shape[1]}")
-        result=arg3(data1, data2)
-
+            raise ValueError(f"The first argument of arg3 callable should be a 2D numpy array, got the shape of {data1.shape}")
+        if data2 is not None:
+            if not isinstance(data2, np.ndarray):
+                raise TypeError(f"The second argument of arg3 callable should be a numpy array, got {type(data2).__name__}.")
+            if data2.ndim!=2:
+                raise ValueError(f"The second argument of arg3 callable should be a 2D numpy array, got the shape of {data2.shape}.")
+            if data1.shape[1]!=data2.shape[1]:
+                raise ValueError(f"The two arguments of arg3 callable should have the same number of columns, got {data1.shape[1]} and {data2.shape[1]}.")
+            result=arg3(data1, data2)
+        else:
+            result=arg3(data1, data1)
         if not isinstance(result, np.ndarray):
-            raise TypeError(f"The return value of arg3 callable should be numpy.ndarray")
+            raise TypeError(f"The return value of arg3 callable should be a numpy array.")
         if result.ndim!=2 or result.shape[0]!=result.shape[1]:
-            raise ValueError(f"The return value of arg3 callable should be a 2-D square numpy array, got the shape of{result.shape}.")
+            raise ValueError(f"The return value of the arg3 callable should be a 2D square numpy array, got the shape of {result.shape}.")
         if not np.allclose(result, result.T, atol=1e-10):
-            raise ValueError("The return value of arg3 callable should be symmetric.")
+            raise ValueError(f"The return value of the arg3 callable should be symmetric.")
         try:
             np.linalg.cholesky(result+1e-10*np.eye(result.shape[0]))
         except np.linalg.LinAlgError:
@@ -141,13 +146,14 @@ def pairwiseArg3(arg3:npFuncType):
     return checker
 
 ## arg4: dict[parameter : argument]
-## target: dict[parameter : expected type]
-def pairwiseArg4(arg4:dict, target:dict):
+## type: dict[parameter : type]
+## target: dict[parameter : defaults]
+def pairwiseArg4(arg4:dict, types:dict, target:dict):
     ## Empty dictionary - for additive_chi2 kernel.
-    if target=={}:
-        return
-    paramDict=target
-    paramCand=list(paramDict.keys())
+    if types=={}:
+        return {}
+    
+    paramCand=list(types.keys())
     paramCand.sort()
     paramSet=set(paramCand)
 
@@ -155,31 +161,58 @@ def pairwiseArg4(arg4:dict, target:dict):
     keyIdx=[paramCand.index(k) for k in keyList]
     keySet=set(arg4.keys())
     if not keySet.issubset(paramSet):
-        raise ValueError(f"The arg4.keys() should only contain keys included in the following list: {paramCand}. Not all available keys need to be present.")
+        raise ValueError(f"The arg4.keys() should only contain keys included in the following list: {paramCand}.\n Not all available keys need to be present.")
+    
     for ki in keyIdx:
         poi=keyList[ki]  # Parameter of interest
         aoi=arg4[poi] # Argument of interest
-        expType=paramDict[poi] # Expected type of aoi value
-        if not isinstance(aoi, paramDict[poi]):
+        expType=types[poi] # Expected type of aoi value
+        if not isinstance(aoi, types[poi]):
             raise TypeError(f"The arg4[{poi}] should be of type {expType}, got {type(aoi).__name__}")
-    return
+    
+    for param in paramCand:
+        if param not in list(arg4.keys()):
+            arg4[param]=target[param]
 
+    return arg4
 
 def pairwisekernelArgs(arg1:float=1.0, arg2:BoundsType=(1e-5, 1e5), arg3:MetricsType="linear", arg4:Optional[dict]=None):
     if not isinstance(arg1, float):
-        raise TypeError("arg1 should be a float value")
-    
+        raise TypeError(f"arg1 should be a float value, got the type of {type(arg1).__name__}.")
+    else:
+        if arg1<=0:
+            raise ValueError(f"arg1 should be a positive value, got {arg1}.")
     boundsCheck(arg2)
 
-    arg3Cands=["linear", "additive_chi2", "chi2", "poly", "polynomial", "rbf", "laplacian", "sigmoid", "cosine"]
-        
+    arg3Cands=["linear", "additive_chi2", "chi2", "poly", "polynomial", "rbf", "laplacian", "sigmoid", "cosine", "precomputed"]
+    
+
+    linear_kwargs_type={'dense_output': bool}
+    additive_chi2_kwargs_type={}
+    chi2_kwargs_type={'gamma': float}
+    poly_kwargs_type={'degree': float, 'gamma': Optional[float], 'coef0': float}
+    rbf_kwargs_type={'gamma': Optional[float]}
+    laplacian_kwargs_type={'gamma': Optional[float]}
+    sigmoid_kwargs_type={'gamma': Optional[float], 'coef0': float}
+    cosine_kwargs_type={'dense_output': bool}
+
+    linear_kwargs={'dense_output': True}
+    additive_chi2_kwargs={}
+    chi2_kwargs={'gamma': 1.0}
+    poly_kwargs={'degree': 3.0, 'gamma': None, 'coef0': 1.0}
+    rbf_kwargs={'gamma': None}
+    laplacian_kwargs={'gamma': None}
+    sigmoid_kwargs={'gamma': None, 'coef0': 1.0}
+    cosine_kwargs={'dense_output': True}
+    
     if not (isinstance(arg3, str) or isinstance(arg3, Callable)):
         raise TypeError(f"arg3 should be a Callable or a string, got {type(arg3).__name__}")
     elif isinstance(arg3, str):
-        if arg3 not in arg3Cands and arg3!="precomputed":
+        if arg3 not in arg3Cands:
             raise ValueError(f"arg3 string value should be one of the following options: {arg3Cands}")
-    ## For the case where arg3 is a Callable object
-    else:
+    
+    ## For the case where arg3 is a Callable object,
+    if isinstance(arg3, Callable):
         pairwiseArg3(arg3)
 
     ## additive_chi2_kernel do not require any additional parameters.
@@ -187,43 +220,56 @@ def pairwisekernelArgs(arg1:float=1.0, arg2:BoundsType=(1e-5, 1e5), arg3:Metrics
         if not isinstance(arg4, dict):
             raise TypeError(f"arg4 should be a dictionary or None, got {type(arg4).__name__}")
         else:
-            if arg3=="linear" or arg3=="cosine":
-                targetDic={'dense_output':bool}
-                
-            elif arg3=="chi2" or arg3=="laplacian" or arg3=="rbf":
-                targetDic={'gamma':float}
-
-            elif arg3=="poly" or arg3=="polynomial":
-                targetDic={'degree':float, 'gamma':float, 'coef0':float}
-            
-            elif arg3=="sigmoid":
-                targetDic={'gamma':float, 'coef0':float}
-            
+            if arg3=="linear":
+                typeDic=linear_kwargs_type
+                targetDic=linear_kwargs
             elif arg3=="additive_chi2":
-                targetDic={}
+                typeDic=additive_chi2_kwargs_type
+                targetDic=additive_chi2_kwargs
+            elif arg3=="chi2":
+                typeDic=chi2_kwargs_type
+                targetDic=chi2_kwargs
+            elif arg3=="poly" or arg3=="polynomial":
+                typeDic=poly_kwargs_type
+                targetDic=poly_kwargs
+            elif arg3=="rbf":
+                typeDic=rbf_kwargs_type
+                targetDic=rbf_kwargs
+            elif arg3=="laplacian":
+                typeDic=laplacian_kwargs_type
+                targetDic=laplacian_kwargs
+            elif arg3=="sigmoid":
+                typeDic=sigmoid_kwargs_type
+                targetDic=sigmoid_kwargs
+            elif arg3=="cosine":
+                typeDic=cosine_kwargs_type
+                targetDic=cosine_kwargs
 
             else:
                 raise ValueError(f"arg3 string value should be one of the following options: {arg3Cands}")
             
-            pairwiseArg4(arg4, targetDic)
+            kwargs=pairwiseArg4(arg4, typeDic, targetDic)
 
             if arg3=="laplacian":
-                if "gamma" in list(arg4.keys()):
-                    gamma=arg4['gamma']
+                if "gamma" in list(kwargs.keys()):
+                    gamma=kwargs['gamma']
                     if gamma <=0:
-                        raise ValueError(f"arg4['gamma'] should be strictly positive.")
-    return {'gamma':arg1, 'gamma_bounds':arg2, 'metric':arg3, 'pairwise_kernel_kwargs':arg4}
+                        raise ValueError(f"arg4['gamma'] should be strictly positive, got {gamma}.")
+    
+    return {'gamma':arg1, 'gamma_bounds':arg2, 'metric':arg3, 'pairwise_kernel_kwargs':kwargs}
+    
 
-
-def rbfArgs(arg1:ScalesType=1.0, arg2:BoundsType=(1e-05, 100000.0)):
+def rbfArgs(arg1:ScalesType=1.0, arg2:BoundsType=(1e-05, 1e5)):
     if not (isinstance(arg1, np.ndarray) or isinstance(arg1, float)):
-        raise TypeError("arg1 should be a 1D numpy array or a float value.")
+        raise TypeError(f"arg1 should be a 1D numpy array or a float value, got {type(arg1).__name__}.")
     if isinstance(arg1, np.ndarray):
         if arg1.ndim!=1:
-            raise ValueError("A numpy array arg1 should be a 1-D array.")
+            raise ValueError(f"A numpy array arg1 should be a 1D array, got the shape of {arg1.shape}.")
         if arg1.dtype!=np.float64:
-            raise TypeError("Elements of numpy array arg1 should be of type np.float64, which is a default float type for numpy arrays.")
-
+            raise TypeError(f"The dtype of arg1 should be np.float64, got {arg1.dtype}.")
+    else:
+        if arg1<=0:
+            raise ValueError(f"arg1 should be a positive float value, got {arg1}.")
     boundsCheck(arg2)
     
     return {'length_scale':arg1, 'length_scale_bounds':arg2}                
@@ -231,16 +277,16 @@ def rbfArgs(arg1:ScalesType=1.0, arg2:BoundsType=(1e-05, 100000.0)):
 
 def rationalquadraticArgs(arg1:float=1.0, arg2:float=1.0, arg3:BoundsType=(1e-5,1e5), arg4:BoundsType=(1e-5,1e5)):
     if not isinstance(arg1, float):
-        raise TypeError("arg1 should be a float value.")
+        raise TypeError(f"arg1 should be a float value, got {type(arg1).__name__}.")
     else:
         if arg1<=0:
-            raise ValueError("arg1 should be strictly positive.")
+            raise ValueError(f"arg1 should be a positive value, got {arg1}.")
     
     if not isinstance(arg2, float):
-        raise TypeError("arg2 hould be a float value.")
+        raise TypeError(f"arg2 should be a float value, got {type(arg2).__name__}.")
     else:
         if arg2<=0:
-            raise ValueError("arg2 should be strictly positive.")
+            raise ValueError(f"arg2 should be a positive value, got {arg2}.")
     
     boundsCheck(arg3)
     boundsCheck(arg4)
@@ -250,10 +296,10 @@ def rationalquadraticArgs(arg1:float=1.0, arg2:float=1.0, arg3:BoundsType=(1e-5,
 
 def whitekernelArgs(arg1:float=1.0, arg2:BoundsType=(1e-5,1e5)):
     if not isinstance(arg1, float):
-        raise TypeError("arg1 should be a float value.")
+        raise TypeError(f"arg1 should be a float value, got {type(arg1).__name__}.")
     else:
-        if arg1<0:
-            raise ValueError("arg1 should be non-negative.")
+        if arg1<=0:
+            raise ValueError(f"arg1 should be a positive value, got {arg1}.")
 
     boundsCheck(arg2)
 
@@ -261,13 +307,13 @@ def whitekernelArgs(arg1:float=1.0, arg2:BoundsType=(1e-5,1e5)):
 
 
     
-def argsConstructor(N:int, kernelTypeIdx:list[int], paramsList:list[list]):
+def argsConstructor(N:int, kernelTypeIdx:list[int|str], paramsList:list[list]):
 
     if not isinstance(kernelTypeIdx, list):
         raise TypeError(f"kernelTypeIdx should be a list, got {type(kernelTypeIdx).__name__}.")
-    if not all(isinstance(kti, int) for kti in kernelTypeIdx):
-        typ=kernelTypeIdx[[isinstance(kti, int) for kti in kernelTypeIdx].index(False)]
-        raise TypeError(f"kernelTypeIdx should contain int values, got {type(typ).__name__ }.")
+    if not all(isinstance(kti, int|str) for kti in kernelTypeIdx):
+        typ=kernelTypeIdx[[isinstance(kti, int|str) for kti in kernelTypeIdx].index(False)]
+        raise TypeError(f"kernelTypeIdx should contain int or string values, got {type(typ).__name__ }.")
     if len(kernelTypeIdx)!=N:
         raise ValueError(f"kernelTypeIdx should be of length {N}, got {len(kernelTypeIdx)}.")
     if not isinstance(paramsList, list):
@@ -278,36 +324,40 @@ def argsConstructor(N:int, kernelTypeIdx:list[int], paramsList:list[list]):
     if len(paramsList)!=N:
         raise ValueError(f"paramsList should be of length {N}, got {len([paramsList])}.")
     
-    ktiMasks=[kti not in set(kernelTypeDic.keys()) for kti in kernelTypeIdx]
+    intRange=[i for i in range(9)]
+    kernelNames=["ConstantKernel", "DotProduct", "ExpSineSquared", "Exponentiation",
+                 "Matern", "PairwiseKernel", "RBF", "RationalQuadratic", "WhiteKernel"]
+    kernelCands=intRange+kernelNames
+    ktiMasks=[kti not in kernelCands for kti in kernelTypeIdx]
     if any(ktiMasks):
-        raise ValueError(f"The kernel type index should be in range(0,9).")
+        raise ValueError(f"The kernel type index should be the following: \n An integer index within (0,9) or the name of the valid kernel types.")
     
-    typeKernel=[kernelTypeDic[kti] for kti in kernelTypeIdx]
+    typeKernel=[kernelTypeDic[kti] for kti in kernelTypeIdx if isinstance(kti, int)]
     paramKernel=[]
 
-    for i, kti in enumerate(kernelTypeIdx):
+    for idx, kernel_type in enumerate(typeKernel):
         paramDic=None
-        params=paramsList[i]
-        if kti==0:
+        params=paramsList[idx]
+        if kernel_type=="ConstantKernel":
             paramDic=constantKernelArgs(*params)
-        elif kti==1:
+        elif kernel_type=="DotProduct":
             paramDic=dotproductKernelArgs(*params)
-        elif kti==2:
+        elif kernel_type=="ExpSineSquared":
             paramDic=expsinesquaredKernelArgs(*params)
-        elif kti==3:
+        elif kernel_type=="Exponentiation":
             paramDic=exponentiationKernelArgs(*params)
-        elif kti==4:
+        elif kernel_type=="Matern":
             paramDic=maternKernelArgs(*params)
-        elif kti==5:
+        elif kernel_type=="PairwiseKernel":
             paramDic=pairwisekernelArgs(*params)
-        elif kti==6:
+        elif kernel_type=="RBF":
             paramDic=rbfArgs(*params)
-        elif kti==7:
+        elif kernel_type=="RationalQuadratic":
             paramDic=rationalquadraticArgs(*params)
-        elif kti==8:
+        elif kernel_type=="WhiteKernel":
             paramDic=whitekernelArgs(*params)
         else:
-            raise ValueError(f"The kernel type index should be in range(0,9), got {kti}.")
+            raise ValueError(f"The kernel type is not valid: {kernel_type}.")
         paramKernel.append(paramDic)
     
     return typeKernel, paramKernel
@@ -530,7 +580,7 @@ def plotEstim2D(figsize:Tuple[int, int], dvs:npt.NDArray, est:npt.NDArray,
     dv2_y=interp1d(idx, dvs[:,1], kind='slinear')
     est_z=interp1d(idx, est, kind='slinear')
 
-    idx_interp=np.linspace(0, N, *N)
+    idx_interp=np.linspace(0, N, N)
     dv1_interp=dv1_x(idx_interp)
     dv2_interp=dv2_y(idx_interp)
     est_interp=est_z(idx_interp)
