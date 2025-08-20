@@ -53,7 +53,7 @@ save_results_dir = config.get('save_results_dir')             # A directory to s
 save_models_dir = config.get('save_models_dir')               # A directory to store the trained Gaussian process regressor models.
 
 ## Construct kernel type specifications and parameter dictionaries for initializing GPRInstance
-type_kernels, param_dics = argsConstructor(N=n_kernels, 
+kernel_type, kernel_param = argsConstructor(N=n_kernels, 
                                             kernelTypeIdx=type_kernels_index, 
                                             paramsList=parameters_list)
 
