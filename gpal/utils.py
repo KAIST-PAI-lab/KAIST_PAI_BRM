@@ -368,142 +368,43 @@ def argsConstructor(num_kernels:int, kernel_type_list:list[int|str], kernel_argu
     
     return kernel_types, kernel_arguments_dict_list
 
-def plotStd1D(figsize:Tuple[int, int], X_fit:npt.NDArray, X_pred:npt.NDArray, 
-              y_fit:npt.NDArray, y_mean:npt.NDArray, y_std:npt.NDArray, 
-              xlabel:str, ylabel:str, title:str, sigma_coef:float=1.0):
-    if any([not isinstance(fs, int) for fs in figsize]):
-        raise ValueError(f"Elements of figsize should be an int value.")
-    if len(figsize)!=2:
-        raise ValueError(f"figsize should be of length 2.")
-    if not isinstance(X_fit, np.ndarray):
-        raise TypeError(f"X_fit should be a numpy array.")
-    if X_fit.ndim!=1:
-        raise ValueError(f"X_fit should be a 1D array.")
-    if not isinstance(X_pred, np.ndarray):
-        raise TypeError(f"X_pred should be a numpy array.")
-    if X_pred.ndim!=1:
-        raise ValueError(f"X_pred should be a 1D array.")
-    if not isinstance(y_fit, np.ndarray):
-        raise TypeError(f"y_fit should be a numpy array.")
-    if y_fit.ndim!=1:
-        raise ValueError(f"y_fit should be a 1D array.")
-    if not isinstance(y_mean, np.ndarray):
-        raise TypeError(f"y_mean should be a numpy array.")
-    if y_mean.ndim!=1:
-        raise ValueError(f"y_mean should be a 1D array.")
-    if not isinstance(y_std, np.ndarray):
-        raise TypeError(f"y_std should be a numpy array.")
-    if y_std.ndim!=1:
-        raise ValueError(f"y_std should be a 1D array.")
-    if X_fit.shape[0]!=y_fit.shape[0]:
-        raise ValueError(f"X_fit and y_fit should have equal length, got {X_fit.shape[0]} and {y_fit.shape[0]}.")
-    if X_pred.shape[0]!=y_mean.shape[0]:
-        raise ValueError(f"X_pred and y_mean should have equal length, got {X_pred.shape[0]} and {y_mean.shape[0]}.")
-    if X_pred.shape[0]!=y_std.shape[0]:
-        raise ValueError(f"X_pred and y_std should have equal length, got {X_pred.shape[0]} and {y_std.shape[0]}.")
-    if sigma_coef<0:
-        raise ValueError(f"sigma_coef should be non-negative, got {sigma_coef}.")
-    if not isinstance(xlabel, str):
-        raise TypeError(f"xlabel should be a string value.")
-    if not isinstance(ylabel, str):
-        raise TypeError(f"ylabel should be a string value.")
-    if not isinstance(title, str):
-        raise TypeError(f"title should be a string value.")
 
+def plotStdFitGPAL(figsize: Tuple[int, int], gpr:GaussianProcessRegressor
+                   dir:str, sbjID:int, x_pred:NDArray, trial_idx:int):
+    filePath=os.path.join(dir, f"{opt}_results_{sbjID}.csv")
+    if os.path.exists(filePath):
+        df=pd.read_csv(filePath)
+    else:
+        raise FileNotFoundError(f"The following file cannot not found: {filePath}.")
 
-    plt.figure(figsize=figsize)
-    plt.scatter(X_fit, y_fit, c='black', label='Data')
-    plt.plot(X_pred, y_mean, label="Prediction", linewidth=2.5, color='black')
-    plt.fill_between(X_pred.ravel(), y_mean-sigma_coef*y_std, y_mean+sigma_coef*y_std, alpha=0.3, label='Uncertainty')
-    plt.title(title)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.tight_layout()
-    plt.show()
+    gns=df['given_number'].to_numpy()
+    ests=df['estimation'].to_numpy()
 
-def plotStd1DCompare(figsize:Tuple[int, int], fontsize:int, X_fit:npt.NDArray, X_pred:npt.NDArray, 
-              y_fit:npt.NDArray, y_mean:npt.NDArray, y_std:npt.NDArray, 
-              y_mean_after:npt.NDArray, y_std_after:npt.NDArray,
-              xlabel:str, ylabel:str, title:str, 
-              titleLeft:str, titleRight:str, maxStdDesign:float, sigma_coef:float=1.0):
-    if any([not isinstance(fs, int) for fs in figsize]):
-        raise ValueError(f"Elements of figsize should be an int value.")
-    if len(figsize)!=2:
-        raise ValueError(f"figsize should be of length 2.")
-    if not isinstance(fontsize, int):
-        raise TypeError(f"fontsize should be an integer value.")
-    if fontsize<=0:
-        raise ValueError(f"fontsize should be a positive integer.")
-    if not isinstance(X_fit, np.ndarray):
-        raise TypeError(f"X_fit should be a numpy array.")
-    if X_fit.ndim!=1:
-        raise ValueError(f"X_fit should be a 1D array.")
-    if not isinstance(X_pred, np.ndarray):
-        raise TypeError(f"X_pred should be a numpy array.")
-    if X_pred.ndim!=1:
-        raise ValueError(f"X_pred should be a 1D array.")
-    if not isinstance(y_fit, np.ndarray):
-        raise TypeError(f"y_fit should be a numpy array.")
-    if y_fit.ndim!=1:
-        raise ValueError(f"y_fit should be a 1D array.")
-    if not isinstance(y_mean, np.ndarray):
-        raise TypeError(f"y_mean should be a numpy array.")
-    if y_mean.ndim!=1:
-        raise ValueError(f"y_mean should be a 1D array.")
-    if not isinstance(y_std, np.ndarray):
-        raise TypeError(f"y_std should be a numpy array.")
-    if y_std.ndim!=1:
-        raise ValueError(f"y_std should be a 1D array.")
-    if not isinstance(y_mean_after, np.ndarray):
-        raise TypeError(f"y_mean_after should be a numpy array.")
-    if y_mean_after.ndim!=1:
-        raise ValueError(f"y_mean_after should be a 1D array.")
-    if not isinstance(y_std, np.ndarray):
-        raise TypeError(f"y_std_after should be a numpy array.")
-    if y_std_after.ndim!=1:
-        raise ValueError(f"y_std_after should be a 1D array.")
-    if X_fit.shape[0]!=y_fit.shape[0]:
-        raise ValueError(f"X_fit and y_fit should have equal length, got {X_fit.shape[0]} and {y_fit.shape[0]}.")
-    if X_pred.shape[0]!=y_mean.shape[0]:
-        raise ValueError(f"X_pred and y_mean should have equal length, got {X_pred.shape[0]} and {y_mean.shape[0]}.")
-    if X_pred.shape[0]!=y_std.shape[0]:
-        raise ValueError(f"X_pred and y_std should have equal length, got {X_pred.shape[0]} and {y_std.shape[0]}.")
-    if not isinstance(maxStdDesign, float):
-        raise TypeError(f"maxGN should be a float value.")
-    if sigma_coef<0:
-        raise ValueError(f"sigma_coef should be non-negative, got {sigma_coef}.")
-    if not isinstance(xlabel, str):
-        raise TypeError(f"xlabel should be a string value.")
-    if not isinstance(ylabel, str):
-        raise TypeError(f"ylabel should be a string value.")
-    if not isinstance(title, str):
-        raise TypeError(f"title should be a string value.")
-    if not isinstance(titleLeft, str):
-        raise TypeError(f"titleLeft should be a string value.")
-    if not isinstance(titleRight, str):
-        raise TypeError(f"titleRight should be a string value.")
+    kernel=ConstantKernel(constant_value, cv_range)*RBF(length_scale, ls_range)+WhiteKernel(noise_level, nl_range)
+    gpr=GaussianProcessRegressor(kernel, normalize_y=True, n_restarts_optimizer=100)
 
+    for ti in range(trial_idx):
+        gpr.fit(np.expand_dims(gns[:ti+1], -1), ests[:ti+1])
+        
+    print(f"get_params: {gpr.kernel_.get_params()}")
+    post_mean, post_std = gpr.predict(np.expand_dims(x_pred, -1), return_std=True)
+    maxStdDesign=float(5*np.argmax(post_std)+5)
+    cv=gpr.kernel_.k1.k1.constant_value
+    ls=gpr.kernel_.k1.k2.length_scale
+    nl=gpr.kernel_.k2.noise_level
+    #title=f"Subject #{sbjID}, Trial #{trial_idx-1}\n constant_value = {cv:.4f},  length_scale = {ls:.4f},  noise_level = {nl:.4f}"
+    title=""
+    titleLeft=f"Trial #{trial_idx-1}"
+    titleRight=f"Trial #{trial_idx}"
+    fontsize=24
+    plotStd1DCompare(figsize, fontsize, gns[:trial_idx], x_pred, ests[:trial_idx], means[trial_idx-1], stds[trial_idx-1], post_mean, post_std,
+               "Given Number", "Estimate", title=title, titleLeft=titleLeft, titleRight=titleRight, sigma_coef=1.0, maxStdDesign=maxStdDesign)
 
-    fig, (ax1, ax2)=plt.subplots(1,2, figsize=figsize)
-    
-    ax1.scatter(X_fit[:-1], y_fit[:-1], c='black', label='Data')
-    ax1.plot(X_pred, y_mean, label="Prediction", linewidth=2.5, color='black')
-    ax1.fill_between(X_pred.ravel(), y_mean-sigma_coef*y_std, y_mean+sigma_coef*y_std, alpha=0.3, label='Uncertainty')
-    ax1.axvline(x=X_fit[-1], color='green', linestyle='--', linewidth=3)
-    ax1.set_title(titleLeft, fontsize=fontsize)
+    #plotStd1D(figsize, gns[:trial_idx], x_pred, ests[:trial_idx], post_mean, post_std, 'Given Number', 'Estiamte', title, 1.0)
+    #plt.subplot(1,2,2)
+    #plotEstim1D(figsize, gns, ests, "Given Number", "Estimate", 
+    #            f"Given Number and Estimates: Subject #{sbjID}")
 
-
-    ax2.scatter(X_fit, y_fit, c='black')
-    ax2.plot(X_pred, y_mean_after, linewidth=2.5, color='black')
-    ax2.fill_between(X_pred.ravel(), y_mean_after-sigma_coef*y_std_after, y_mean_after+sigma_coef*y_std_after, alpha=0.3)
-    ax2.scatter(X_fit[-1], y_fit[-1], c='red')
-    ax2.axvline(x=maxStdDesign, color='green', linestyle='--', linewidth=3)
-    ax2.set_title(titleRight, fontsize=fontsize)
-
-    fig.suptitle(title, fontsize=fontsize)
-
-    plt.tight_layout()
-    plt.show()
 
 
 
@@ -602,125 +503,3 @@ def plotEstim2D(figsize:Tuple[int, int], dvs:npt.NDArray, est:npt.NDArray,
 
 
 
-def plotFreq1D(figsize:Tuple[int, int], N:int, dv1:npt.NDArray, bins:int, ranges:Optional[Tuple[float, float]], 
-               mode:str="sum", xlabel:str="Design Variable", ylabel:str="Frequencies", title:str="Design selection frequencies"):
-    
-    if any([not isinstance(fs, int) for fs in figsize]):
-        raise TypeError(f"Elements of figsize should be an int value.")
-    if len(figsize)!=2:
-        raise ValueError(f"figsize should be of length 2.")
-    if not isinstance(N, int):
-        raise TypeError(f"N should be an integer value.")
-    if N<1:
-        raise ValueError(f"N should be a positive integer.")
-    if not isinstance(dv1, np.ndarray):
-        raise TypeError(f"dv1 should be a numpy array.")
-    if dv1.ndim!=1:
-        raise ValueError(f"dv1 should be a 1D array.")
-    if not isinstance(bins, int):
-        raise TypeError(f"bins should be an integer values.")
-    if ranges is not None:
-        if not isinstance(ranges, tuple):
-            raise TypeError(f"ranges should be a tuple or None.")
-        if not all([isinstance(r, float) for r in ranges]):
-            raise TypeError(f"ranges should contain float values.")
-        if len(ranges)!=2:
-            raise ValueError(f"ranges should contain 2 float values, got {len(ranges)}.")
-    if not isinstance(mode, str):
-        raise TypeError(f"mode should be a string.")
-    if mode not in ["average", "sum"]:
-        raise ValueError(f"mode should be either 'average' or 'sum', got {mode}.")
-    if not isinstance(xlabel, str):
-        raise TypeError(f"xlabel should be a string value.")
-    if not isinstance(ylabel, str):
-        raise TypeError(f"ylabel should be a string value.")
-    if not isinstance(title, str):
-        raise TypeError(f"title should be a string value.")
-
-       
-    plt.figure(figsize=figsize)
-    hist, dv1_pos=np.histogram(dv1, bins=bins, range=ranges)
-
-    if mode=='average':
-        hist=hist/N
-    dv1_pos=dv1_pos[:-1].ravel()
-    freq_pos=0
-
-    w=bins*np.ones_like(freq_pos)
-    h=hist.ravel()
-    
-    plt.bar(dv1_pos, height=h, width=w, bottom=freq_pos, align='center')
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.title(title)
-
-    plt.show()
-
-
-
-def plotFreq2D(figsize:Tuple[int, int], dvs:npt.NDArray, bins:list[int], ranges:Optional[list[list[float]]], 
-               xlabel:str, ylabel:str, zlabel:str="Frequencies", title:str="Design selection frequencies"):
-    
-    if any([not isinstance(fs, int) for fs in figsize]):
-        raise ValueError(f"Elements of figsize should be an int value.")
-    if len(figsize)!=2:
-        raise ValueError(f"figsize should be of length 2.")
-    if not isinstance(dvs, np.ndarray):
-        raise TypeError(f"dvs should be a numpy array.")
-    if dvs.ndim!=2:
-        raise ValueError(f"dvs should be a 2D array.")
-    if dvs.shape[1]!=2:
-        raise ValueError(f"dvs should have 2 columns, got {dvs.shape[1]}.")
-    if not isinstance(bins, list):
-        raise TypeError(f"bins should be a list of integer values.")
-    if not all([isinstance(b, int) for b in bins]):
-        raise TypeError(f"bins should contain integer values.")
-    if len(bins)!=2:
-        raise ValueError(f"bins should be of length 2, got {len(bins)}.")
-    if ranges is not None:
-        if not isinstance(ranges, list):
-            raise TypeError(f"ranges should be a list.")
-        if not all([isinstance(r, list) for r in ranges]):
-            raise TypeError(f"ranges should contain list elements.")
-        if not all([isinstance(r1, float) for r1 in ranges[0]]):
-            raise TypeError(f"ranges[0] should contain float type elements.")
-        if not all([isinstance(r2, float) for r2 in ranges[1]]):
-            raise TypeError(f"ranges[1] should contain float type elements.")
-        if len(ranges)!=2:
-            raise ValueError(f"ranges should contain 2 lists, got {len(ranges)}.")
-        if len(ranges[0])!=2:
-            raise ValueError(f"ranges[0] should contain 2 float elements, got {len(ranges[0])}.")
-        if len(ranges[1])!=2:
-            raise ValueError(f"ranges[1] should contain 2 float elements, got {len(ranges[1])}.")
-    
-    if not isinstance(xlabel, str):
-        raise TypeError(f"xlabel should be a string value.")
-    if not isinstance(ylabel, str):
-        raise TypeError(f"ylabel should be a string value.")
-    if not isinstance(zlabel, str):
-        raise TypeError(f"zlabel should be a string value.")
-    if not isinstance(title, str):
-        raise TypeError(f"title should be a string value.")
-
-       
-    fig=plt.figure(figsize=figsize)
-    ax=fig.add_subplot(projection='3d')
-    hist, dv1_edge, dv2_edge=np.histogram2d(dvs[:,0], dvs[:,1], bins=bins, range=ranges)
-
-    dv1_pos, dv2_pos=np.meshgrid(dv1_edge[:-1], dv2_edge[:-1], indexing="ij")
-    dv1_pos=dv1_pos.ravel()
-    dv2_pos=dv2_pos.ravel()
-    hist_pos=0
-
-    w=bins[0]*np.ones_like(hist_pos)
-    d=bins[1]*np.ones_like(hist_pos)
-    h=hist.ravel()
-    
-    ax.bar3d(dv1_pos, dv2_pos, hist_pos, w, d, hist, zsort='average')
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    ax.set_zlabel(zlabel)
-    ax.set_title(title)
-
-    plt.show()
-    

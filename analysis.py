@@ -19,29 +19,17 @@ def plotStdFitGPAL(figsize: Tuple[int, int], constant_value:float, cv_range:Boun
         df=pd.read_csv(filePath)
     else:
         raise FileNotFoundError(f"The following file cannot not found: {filePath}.")
-    meanPath=os.path.join(dir, f"{opt}_posterior_mean_{sbjID}.csv")
-    if os.path.exists(meanPath):
-        means=np.loadtxt(meanPath, delimiter=',')
-    else:
-        raise FileNotFoundError(f"The following file cannot be found: {meanPath}.")
-    stdPath=os.path.join(dir, f"{opt}_posterior_std_{sbjID}.csv")
-    if os.path.exists(stdPath):
-        stds=np.loadtxt(stdPath, delimiter=',')
-    else:
-        raise FileNotFoundError(f"The following file cannot be found: {stdPath}.")
 
     gns=df['given_number'].to_numpy()
     ests=df['estimation'].to_numpy()
 
     kernel=ConstantKernel(constant_value, cv_range)*RBF(length_scale, ls_range)+WhiteKernel(noise_level, nl_range)
-    #kernel=RBF(length_scale, ls_range)+WhiteKernel(noise_level, nl_range)
     gpr=GaussianProcessRegressor(kernel, normalize_y=True, n_restarts_optimizer=100)
 
     for ti in range(trial_idx):
         gpr.fit(np.expand_dims(gns[:ti+1], -1), ests[:ti+1])
         
     print(f"get_params: {gpr.kernel_.get_params()}")
-    #print(f"length_scale: {np.exp(gpr.kernel_.k2.theta).item()}")
     post_mean, post_std = gpr.predict(np.expand_dims(x_pred, -1), return_std=True)
     maxStdDesign=float(5*np.argmax(post_std)+5)
     cv=gpr.kernel_.k1.k1.constant_value
