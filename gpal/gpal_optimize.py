@@ -3,7 +3,7 @@ import numpy as np
 from typing import Callable
 import numpy.typing as npt
 import inspect
-from gpr_fit_predict import gpr_fit, gpr_predict, next_design
+from gpal.gpr_fit_predict import gpr_fit, gpr_predict, next_design
 import gpal.utils
 
 

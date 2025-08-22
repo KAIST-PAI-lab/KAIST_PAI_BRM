@@ -1,4 +1,4 @@
-from gpal.utils import plotEstim1D, plotFreq1D, plotStd1D, plotStd1DCompare
+from gpal.gpal_plot import plot_GPAL_uncertainty, plot_GPAL_compare_uncertainty
 import pandas as pd
 import numpy as np
 import os
@@ -10,43 +10,89 @@ from numpy.typing import NDArray
 from scipy.interpolate import interp1d
 from typing import Tuple, Optional
 from gpal.utils import BoundsType
+import pickle
+import re
+import warnings
+warnings.filterwarnings('ignore')
 
-def plotStdFitGPAL(figsize: Tuple[int, int], constant_value:float, cv_range:BoundsType,
-                   length_scale:float, ls_range:BoundsType, noise_level:float, nl_range:BoundsType,
-                   dir:str, sbjID:int, x_pred:NDArray, trial_idx:int):
-    filePath=os.path.join(dir, f"{opt}_results_{sbjID}.csv")
+
+
+
+
+def plot_GPAL_fit(fig_size: Tuple[int, int], gpr_dir: str, sbj_dir: str, fig_dir: str,
+                   sbj_id: int, predict_candidates_X:NDArray, trial_idx:int, outlier_thres:float):
+    
+    filePath=os.path.join(sbj_dir, f"gpal_results_{sbj_id}.csv")
     if os.path.exists(filePath):
         df=pd.read_csv(filePath)
     else:
         raise FileNotFoundError(f"The following file cannot not found: {filePath}.")
 
+    gprPath=os.path.join(gpr_dir, f"GPR_{sbj_id}.pkl")
+    with open(gprPath, 'rb') as f:
+        gpr=pickle.load(f)
+
     gns=df['given_number'].to_numpy()
     ests=df['estimation'].to_numpy()
+    gns=np.expand_dims(gns, -1)
+    ests=np.expand_dims(ests, -1)
 
-    kernel=ConstantKernel(constant_value, cv_range)*RBF(length_scale, ls_range)+WhiteKernel(noise_level, nl_range)
-    gpr=GaussianProcessRegressor(kernel, normalize_y=True, n_restarts_optimizer=100)
+    original_kernel=gpr.kernel
+    print(f"The original kernel: {original_kernel}")
 
-    for ti in range(trial_idx):
-        gpr.fit(np.expand_dims(gns[:ti+1], -1), ests[:ti+1])
-        
-    print(f"get_params: {gpr.kernel_.get_params()}")
-    post_mean, post_std = gpr.predict(np.expand_dims(x_pred, -1), return_std=True)
-    maxStdDesign=float(5*np.argmax(post_std)+5)
-    cv=gpr.kernel_.k1.k1.constant_value
-    ls=gpr.kernel_.k1.k2.length_scale
-    nl=gpr.kernel_.k2.noise_level
-    #title=f"Subject #{sbjID}, Trial #{trial_idx-1}\n constant_value = {cv:.4f},  length_scale = {ls:.4f},  noise_level = {nl:.4f}"
-    title=""
-    titleLeft=f"Trial #{trial_idx-1}"
-    titleRight=f"Trial #{trial_idx}"
-    fontsize=24
-    plotStd1DCompare(figsize, fontsize, gns[:trial_idx], x_pred, ests[:trial_idx], means[trial_idx-1], stds[trial_idx-1], post_mean, post_std,
-               "Given Number", "Estimate", title=title, titleLeft=titleLeft, titleRight=titleRight, sigma_coef=1.0, maxStdDesign=maxStdDesign)
+    '''
+    train_index=0
+    chosen_index=0
+    fit_data_X=np.zeros((gns.shape[0],1))
+    obs_data_Y=np.zeros((ests.shape[0],))
+    gpr=GaussianProcessRegressor(kernel=original_kernel, normalize_y=True, n_restarts_optimizer=100)
+    while train_index<gns.shape[0]:
+        if train_index==0:
+            fit_data_X[chosen_index]=gns[train_index]
+            obs_data_Y[chosen_index]=ests[train_index]
+            gpr.fit(fit_data_X[:chosen_index+1], obs_data_Y[chosen_index+1])
+            chosen_index=chosen_index+1
+            train_index=train_index+1
+        else:
+            post_mean, post_stdev=gpr.predict(np.expand_dims(predict_candidates_X, -1), return_std=True)
+            max_stdev_index=np.argmax(post_stdev)
+            post_mean_stdev=np.std(post_mean)
+            if max_stdev_index < outlier_thres * post_mean_stdev:
+                fit_data_X[chosen_index]=gns[train_index]
+                obs_data_Y[chosen_index]=ests[train_index]
+                chosen_index=chosen_index+1
+            train_index=train_index+1
+            gpr.fit(fit_data_X[:chosen_index+1], obs_data_Y[:chosen_index+1])
+    fit_data_X=fit_data_X[:chosen_index]
+    obs_data_Y=obs_data_Y[:chosen_index]
+    '''
+    
+    gpr=GaussianProcessRegressor(original_kernel, normalize_y=True, n_restarts_optimizer=100)
+    for fit_index in range(1, chosen_index+1):
+        gpr.fit(fit_data_X[:fit_index], obs_data_Y[:fit_index])
+    print(f"The fitted kernel: {gpr.kernel_}")
 
-    #plotStd1D(figsize, gns[:trial_idx], x_pred, ests[:trial_idx], post_mean, post_std, 'Given Number', 'Estiamte', title, 1.0)
-    #plt.subplot(1,2,2)
-    #plotEstim1D(figsize, gns, ests, "Given Number", "Estimate", 
-    #            f"Given Number and Estimates: Subject #{sbjID}")
+    post_mean_final, post_stdev_final = gpr.predict(np.expand_dims(predict_candidates_X, -1), return_std=True)
+
+    title=f"Subject #{sbj_id}, Trial #{trial_idx-1}"
+    if not os.path.exists(fig_dir):
+        os.mkdir(fig_dir)
+    filename=os.path.join(fig_dir, f"{sbj_id}_uncertainty_trial_{trial_idx}.png")
+ 
+    plot_GPAL_uncertainty(fig_size=fig_size,
+                            fit_data_X=fit_data_X, 
+                            predict_candidates_X=predict_candidates_X, 
+                            obs_data_Y=obs_data_Y, 
+                            post_mean=post_mean_final, 
+                            post_stdev=post_stdev_final, 
+                            xlabel='Given Number', 
+                            ylabel='Estiamte', 
+                            title=title, 
+                            file_name=filename,
+                            sigma_coef=1.0)
+
+    
+
 
 def plotFreq(figsize:Tuple[int, int], dir:str, opt:str, n_trials: int, bin:int, ranges:Optional[Tuple[float, float]], mode:str='sum'):
     
@@ -65,23 +111,23 @@ def plotFreq(figsize:Tuple[int, int], dir:str, opt:str, n_trials: int, bin:int, 
     gns=gns.ravel()
     plotFreq1D(figsize, N, gns, bin, ranges, mode='average', xlabel="Given Number (Optimized)", title=f"Design selection frequencies ({mode})")
 
+'''
+plot_GPAL_compare_uncertainty(fig_size=fig_size, 
+                            font_size=, gns[:trial_idx], x_pred, ests[:trial_idx], means[trial_idx-1], stds[trial_idx-1], post_mean, post_std,
+#           "Given Number", "Estimate", title=title, titleLeft=titleLeft, titleRight=titleRight, sigma_coef=1.0, maxStdDesign=maxStdDesign)
+'''
 
-        
 if __name__=="__main__":
-    figsize=(18, 6)
+    figsize=(16, 8)
     n_trials=20
-    x_pred=np.linspace(5, 500, (500-5)//5+1)
+    pred_cand_X=np.linspace(5, 500, (500-5)//5+1)
     sbjID=25081110
     opt='gpal'
-    dir=os.path.join('experiment_results', f'participant_{sbjID}')
-    #dir='results'
+    sbj_dir=os.path.join('experiment_results', f'participant_{sbjID}')
+    gpr_dir=os.path.join('models', f"{sbjID}")
+    fig_dir=os.path.join('figures', f"{sbjID}")
 
-    constant_value=1.0
-    cv_range=(1e-5, 1e5)
-    length_scale=1.0
-    ls_range=(1e-5, 1e5)
-    noise_level=0.05
-    nl_range=(1e-5, 1e1)
-    plotStdFitGPAL(figsize, constant_value, cv_range, length_scale, ls_range, noise_level, nl_range, 
-                   dir, sbjID, x_pred, trial_idx=6+1)
+    plot_GPAL_fit(fig_size=figsize, gpr_dir=gpr_dir, sbj_dir=sbj_dir, 
+                  fig_dir=fig_dir,sbj_id=sbjID, predict_candidates_X=pred_cand_X, 
+                  trial_idx=19+1, outlier_thres=2.5)
     #plotFreq(figsize, opt, dir, n_trials, bin=10, ranges=(0.0, 500.0), mode='sum')#

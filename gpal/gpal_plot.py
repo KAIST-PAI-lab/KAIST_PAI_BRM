@@ -17,8 +17,8 @@ def plot_GPAL_uncertainty(fig_size:Tuple[int, int], fit_data_X:npt.NDArray, pred
         raise ValueError(f"figsize should be of length 2, got {len(fig_size)}.")
     if not isinstance(fit_data_X, np.ndarray):
         raise TypeError(f"fit_data_X should be a numpy array, got the type of {type(fit_data_X).__name__}.")
-    if fit_data_X.ndim!=1:
-        raise ValueError(f"fit_data_X should be a 1D array, got {fit_data_X.ndim} dimensions.")
+    if fit_data_X.ndim!=2:
+        raise ValueError(f"fit_data_X should be a 2D array, got {fit_data_X.ndim} dimensions.")
     if not isinstance(predict_candidates_X, np.ndarray):
         raise TypeError(f"predict_candidates_X should be a numpy array, got the type of {type(predict_candidates_X).__name__}.")
     if predict_candidates_X.ndim!=1:
@@ -55,9 +55,9 @@ def plot_GPAL_uncertainty(fig_size:Tuple[int, int], fit_data_X:npt.NDArray, pred
         raise TypeError(f"file_name should be a string value, got the type of {type(file_name).__name__}.")
 
     plt.figure(figsize=fig_size)
-    plt.scatter(fit_data_X, obs_data_Y, c='black', label='Data')
+    plt.scatter(fit_data_X.ravel(), obs_data_Y, c='black', label='Data')
     plt.plot(predict_candidates_X, post_mean, label="Prediction", linewidth=2.5, color='black')
-    plt.fill_between(predict_candidates_X.ravel(), post_mean-sigma_coef*post_stdev, 
+    plt.fill_between(predict_candidates_X, post_mean-sigma_coef*post_stdev, 
                      post_mean+sigma_coef*post_stdev, alpha=0.3, label='Uncertainty')
     plt.title(title)
     plt.xlabel(xlabel)

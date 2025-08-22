@@ -369,42 +369,6 @@ def argsConstructor(num_kernels:int, kernel_type_list:list[int|str], kernel_argu
     return kernel_types, kernel_arguments_dict_list
 
 
-def plotStdFitGPAL(figsize: Tuple[int, int], gpr:GaussianProcessRegressor
-                   dir:str, sbjID:int, x_pred:NDArray, trial_idx:int):
-    filePath=os.path.join(dir, f"{opt}_results_{sbjID}.csv")
-    if os.path.exists(filePath):
-        df=pd.read_csv(filePath)
-    else:
-        raise FileNotFoundError(f"The following file cannot not found: {filePath}.")
-
-    gns=df['given_number'].to_numpy()
-    ests=df['estimation'].to_numpy()
-
-    kernel=ConstantKernel(constant_value, cv_range)*RBF(length_scale, ls_range)+WhiteKernel(noise_level, nl_range)
-    gpr=GaussianProcessRegressor(kernel, normalize_y=True, n_restarts_optimizer=100)
-
-    for ti in range(trial_idx):
-        gpr.fit(np.expand_dims(gns[:ti+1], -1), ests[:ti+1])
-        
-    print(f"get_params: {gpr.kernel_.get_params()}")
-    post_mean, post_std = gpr.predict(np.expand_dims(x_pred, -1), return_std=True)
-    maxStdDesign=float(5*np.argmax(post_std)+5)
-    cv=gpr.kernel_.k1.k1.constant_value
-    ls=gpr.kernel_.k1.k2.length_scale
-    nl=gpr.kernel_.k2.noise_level
-    #title=f"Subject #{sbjID}, Trial #{trial_idx-1}\n constant_value = {cv:.4f},  length_scale = {ls:.4f},  noise_level = {nl:.4f}"
-    title=""
-    titleLeft=f"Trial #{trial_idx-1}"
-    titleRight=f"Trial #{trial_idx}"
-    fontsize=24
-    plotStd1DCompare(figsize, fontsize, gns[:trial_idx], x_pred, ests[:trial_idx], means[trial_idx-1], stds[trial_idx-1], post_mean, post_std,
-               "Given Number", "Estimate", title=title, titleLeft=titleLeft, titleRight=titleRight, sigma_coef=1.0, maxStdDesign=maxStdDesign)
-
-    #plotStd1D(figsize, gns[:trial_idx], x_pred, ests[:trial_idx], post_mean, post_std, 'Given Number', 'Estiamte', title, 1.0)
-    #plt.subplot(1,2,2)
-    #plotEstim1D(figsize, gns, ests, "Given Number", "Estimate", 
-    #            f"Given Number and Estimates: Subject #{sbjID}")
-
 
 
 
