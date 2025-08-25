@@ -319,104 +319,119 @@ def plot_frequency_histogram_2D(fig_size:Tuple[int, int], num_data:int, design_v
     ax.set_title(title)
 
     plt.savefig(file_name)
-    
-#%%
 
-def plot_convergence(gp_regressor, x_range, y_range, x_data_points, y_data_points, figure_size=(12, 4)):
-    """_summary_
+def plot_convergence(gp_regressor, x_range, y_range, x_data_points, y_data_points, figure_size=(12, 4), function_colors=["lightgreen", "lightblue", "mediumpurple", "black"]):
+    """
+        Visualize Gaussian Process (GP) regression convergence.
 
-    Args:
-        gp_regressor (_type_): _description_
-        x_range (_type_): All possible x values
-        y_range (_type_): All possible y values
-        data_points_x (_type_): _description_
-        data_points_y (_type_): _description_
+        This function fits a GaussianProcessRegressor incrementally as more data points are added,
+        plots the GP mean function at selected quantiles of the training process, and shows
+        the convergence of the mean squared error (MSE) between each trial and the final trial.
+
+        Arguments:
+            gp_regressor (GaussianProcessRegressor): 
+                An initialized scikit-learn GaussianProcessRegressor object.
+                Raises TypeError if the object is not of this type.
+            x_range (array-like): 
+                Full range of possible X values.
+            y_range (array-like): 
+                Full range of possible Y values.
+            x_data_points (array-like): 
+                Observed X data points.
+            y_data_points (array-like): 
+                Observed Y data points.
+            figure_size (tuple, optional): 
+                Size of the figure as (width, height). Defaults to (12, 4).
+            function_colors (list of strings, optional): 
+                Colors for visualizing GP mean functions at different quantiles. 
+                Defaults to ["lightgreen", "lightblue", "mediumpurple", "black"].
+
+        Returns:
+            tuple:
+                - figure (matplotlib.figure.Figure): The overall figure object.
+                - axes (numpy.ndarray of matplotlib.axes.Axes): Array containing the two subplot axes.
+
+        Raises:
+            TypeError: If `gp_regressor` is not an instance of 
+                    sklearn.gaussian_process.GaussianProcessRegressor.
+            ValueError: If the lengths of `x_data_points` and `y_data_points` do not match
     """
 
-    x_range_reshaped_for_gpr = np.array(x_range).reshape(-1, 1)
+    if not isinstance(gp_regressor, GaussianProcessRegressor):
+        raise TypeError(
+            f"gp_regressor must be sklearn.gaussian_process.GaussianProcessRegressor, "
+            f"got {type(gp_regressor).__name__}."
+        )
+    
+    if len(x_data_points) != len(y_data_points):
+        raise ValueError(
+            f"x_data_points and y_data_points must have the same length, "
+            f"got {len(x_data_points)} and {len(y_data_points)} for x and y respectively."
+        )
 
     num_data_points = len(x_data_points)
         
     figure, axes = plt.subplots(1, 2, figsize=figure_size)
     gp_mean_function_list = []
-    # Draw curves except the final one
-    for i in range(1, num_data_points):
-        x_data_points_each_trial = x_data_points[:i]
-        x_data_points_reshaped_for_gpr = np.array(x_data_points_each_trial).reshape(-1, 1)
 
-        y_data_points_each_trial = y_data_points[:i]
-        y_data_points_reshaped_for_gpr = np.array(y_data_points_each_trial).reshape(-1, 1)
+    quantiles_visualize = [0.25, 0.5, 0.75, 1]
+    n_trials_visualize = []
+    for quantile in quantiles_visualize:
+        n_trials_visualize.append(int(num_data_points * quantile))
+
+    # Generate plot 1: GP mean functions visualized
+    x_range_reshaped_for_gpr = np.array(x_range).reshape(-1, 1)
+    quantile_count = 0
+    for i in range(1, num_data_points+1):
+        x_data_points_current_trial = x_data_points[:i]
+        x_data_points_reshaped_for_gpr = np.array(x_data_points_current_trial).reshape(-1, 1)
+
+        y_data_points_current_trial = y_data_points[:i]
+        y_data_points_reshaped_for_gpr = np.array(y_data_points_current_trial).reshape(-1, 1)
         
         gp_regressor.fit(x_data_points_reshaped_for_gpr, y_data_points_reshaped_for_gpr)
 
         gp_mean_function = gp_regressor.predict(x_range_reshaped_for_gpr)
 
         gp_mean_function_list.append(gp_mean_function)
+        
+        if i in n_trials_visualize[:-1]:
+            current_quantile = int(quantiles_visualize[quantile_count] * 100)
+            axes[0].plot(x_range, gp_mean_function, color=function_colors[quantile_count], linewidth=2, label=f"Trial #{i} ({current_quantile}%)")
+            quantile_count += 1
+        elif i == n_trials_visualize[-1]:
+            axes[0].plot(x_range, gp_mean_function, color=function_colors[-1], linewidth=2.5, label="Final Trial")
 
-        axes[0].plot(x_range, gp_mean_function, alpha=0.25, color="skyblue")
 
-    # Draw the final curve
-    x_data_points_reshaped_for_gpr = np.array(x_data_points).reshape(-1, 1)
-    y_data_points_reshaped_for_gpr = np.array(y_data_points).reshape(-1, 1)
-    print(len(y_data_points_reshaped_for_gpr))
-    gp_regressor.fit(x_data_points_reshaped_for_gpr, y_data_points_reshaped_for_gpr)
-    gp_mean_function_final = gp_regressor.predict(x_range_reshaped_for_gpr)
-    gp_mean_function_list.append(gp_mean_function_final)
-
-    axes[0].plot(x_range, gp_mean_function_final, alpha=1, color="orange", linewidth=2)
-
-    # set plot margins
+    # Set plot margins for better visibility
     ymin, ymax = min(y_range), max(y_range)
     span = ymax - ymin
     margin = 0.1 * span
     axes[0].set_ylim(ymin - margin, ymax + margin)
+    axes[0].set_title("GP mean functions visualized")
+    axes[0].legend()
 
-    # data points scatter
-    axes[0].scatter(x_data_points, y_data_points, c="black", s=10)
+    # Data points scatter
+    axes[0].scatter(x_data_points, y_data_points, c="darkgrey", edgecolor="white", zorder=3, s=30)
 
-    # show the finalized plot
-    figure.tight_layout()
-
-    # plt.savefig()
-    # figure.show()
-
-    # generate plot 2: MSE value between each trial and the final trial
-
+    # Generate plot 2: MSE value between each trial and the final trial
     mse_values = []
+    print(num_data_points)
+    print(len(gp_mean_function_list))
     for i in range(num_data_points):
-        mse = mean_squared_error(gp_mean_function_list[i], gp_mean_function_final)
+        mse = mean_squared_error(gp_mean_function_list[i], gp_mean_function_list[-1])
         mse_values.append(mse)
 
-    trials = np.arange(1, len(mse_values)+1) 
+    trials = np.arange(1, len(mse_values) + 1) 
     axes[1].plot(trials, mse_values, marker='o', linewidth=2)
     axes[1].xaxis.set_major_locator(MultipleLocator(1))
     axes[1].set_xlim(0.5, len(mse_values)+0.5)
-    axes[1].set_xlabel("Trial (cumulative)")
-    axes[1].set_ylabel("MSE vs. final GP")
-    axes[1].set_title("Convergence (MSE to final)")
+    axes[1].set_xlabel("Trial")
+    axes[1].set_ylabel("MSE")
+    axes[1].set_title("Distance to the final function")
     axes[1].grid(True, alpha=0.3)
 
     figure.tight_layout()
+    figure.suptitle("Convergence Plot", fontsize=16, y=1.03)
 
     return figure, axes
-
-# %%
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF
-from sklearn.gaussian_process.kernels import ConstantKernel as C
-from sklearn.gaussian_process.kernels import WhiteKernel
-
-# example data: subject #081114 GPAL results
-x_range = np.linspace(5, 500, 500)
-y_range = np.linspace(5, 500, 500)
-x_data_points = [355, 5, 10, 500, 145, 260, 445, 75, 500, 215, 5, 390, 500, 5, 500, 5, 500, 250, 5, 500]
-y_data_points = [314.5, 5, 8, 494, 169.5, 233, 421.5, 86, 478, 169, 2, 383, 496, 1.5, 449, 2.5, 491, 331.5, 5, 498.5]
-
-kernel = RBF(length_scale=2.0) + WhiteKernel(
-    noise_level=0.05, noise_level_bounds=(1e-10, 1e1)
-)
-
-gp = GaussianProcessRegressor(kernel=kernel, normalize_y=True, n_restarts_optimizer=100)
-
-figure, axes = plot_convergence(gp_regressor=gp, x_range=x_range, y_range=y_range, x_data_points=x_data_points, y_data_points=y_data_points)
-figure.show()
