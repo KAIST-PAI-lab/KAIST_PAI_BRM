@@ -16,11 +16,8 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-
-
-
 def plot_GPAL_fit(fig_size: Tuple[int, int], gpr_dir: str, sbj_dir: str, fig_dir: str,
-                   sbj_id: int, predict_candidates_X:NDArray, trial_idx:int, outlier_thres:float):
+                   sbj_id: int, predict_candidates_X:NDArray, trial_idx:int,):
     
     filePath=os.path.join(sbj_dir, f"gpal_results_{sbj_id}.csv")
     if os.path.exists(filePath):
@@ -66,7 +63,7 @@ def plot_GPAL_fit(fig_size: Tuple[int, int], gpr_dir: str, sbj_dir: str, fig_dir
     fit_data_X=fit_data_X[:chosen_index]
     obs_data_Y=obs_data_Y[:chosen_index]
     '''
-    
+
     gpr=GaussianProcessRegressor(original_kernel, normalize_y=True, n_restarts_optimizer=100)
     for fit_index in range(1, chosen_index+1):
         gpr.fit(fit_data_X[:fit_index], obs_data_Y[:fit_index])

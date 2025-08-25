@@ -7,8 +7,8 @@ from mpl_toolkits.mplot3d.axes3d import Axes3D
 
 
 def plot_GPAL_uncertainty(fig_size:Tuple[int, int], fit_data_X:npt.NDArray, predict_candidates_X:npt.NDArray, 
-              obs_data_Y:npt.NDArray, post_mean:npt.NDArray, post_stdev:npt.NDArray, 
-              xlabel:str, ylabel:str, title:str, file_name:str, sigma_coef:float=1.0):
+                        obs_data_Y:npt.NDArray, post_mean:npt.NDArray, post_stdev:npt.NDArray, 
+                        x_label:str, y_label:str, title:str, sigma_coef:float=1.0):
     if not isinstance(fig_size, Tuple):
         raise TypeError(f"fig_size should be a tuple, got the type of {type(fig_size).__name__}.")
     if any([not isinstance(fs, int) for fs in fig_size]):
@@ -45,26 +45,24 @@ def plot_GPAL_uncertainty(fig_size:Tuple[int, int], fit_data_X:npt.NDArray, pred
         raise TypeError(f"sigma_coef should be a float value, got the type of {type(sigma_coef).__name__}.")
     if sigma_coef<0:
         raise ValueError(f"sigma_coef should be non-negative, got {sigma_coef}.")
-    if not isinstance(xlabel, str):
-        raise TypeError(f"xlabel should be a string value, got the type of {type(xlabel).__name__}.")
-    if not isinstance(ylabel, str):
-        raise TypeError(f"ylabel should be a string value, got the type of {type(ylabel).__name__}.")
+    if not isinstance(x_label, str):
+        raise TypeError(f"xlabel should be a string value, got the type of {type(x_label).__name__}.")
+    if not isinstance(y_label, str):
+        raise TypeError(f"ylabel should be a string value, got the type of {type(y_label).__name__}.")
     if not isinstance(title, str):
         raise TypeError(f"title should be a string value, got the type of {type(title).__name__}.")
-    if not isinstance(file_name, str):
-        raise TypeError(f"file_name should be a string value, got the type of {type(file_name).__name__}.")
-
-    plt.figure(figsize=fig_size)
-    plt.scatter(fit_data_X.ravel(), obs_data_Y, c='black', label='Data')
-    plt.plot(predict_candidates_X, post_mean, label="Prediction", linewidth=2.5, color='black')
-    plt.fill_between(predict_candidates_X, post_mean-sigma_coef*post_stdev, 
-                     post_mean+sigma_coef*post_stdev, alpha=0.3, label='Uncertainty')
-    plt.title(title)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.tight_layout()
     
-    plt.savefig(file_name)
+    figure=plt.figure(figsize=fig_size)
+    ax=figure.add_subplot(1,1,1)
+    ax.scatter(fit_data_X.ravel(), obs_data_Y, c='black', label='Data')
+    ax.plot(predict_candidates_X, post_mean, label="Prediction", linewidth=2.5, color='black')
+    ax.fill_between(predict_candidates_X, post_mean-sigma_coef*post_stdev, 
+                     post_mean+sigma_coef*post_stdev, alpha=0.3, label='Uncertainty')
+    ax.set_title(title)
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    
+    return figure, ax
 
 
 
@@ -74,8 +72,8 @@ def plot_GPAL_compare_uncertainty(fig_size:Tuple[int, int], font_size:int, fit_d
                                     predict_candidates_X:npt.NDArray, obs_data_Y:npt.NDArray, 
                                     post_mean:npt.NDArray, post_stdev:npt.NDArray, 
                                     post_mean_after:npt.NDArray, post_stdev_after:npt.NDArray,
-                                    title:str, titleLeft:str, titleRight:str, 
-                                    max_stdev_design:float, file_name:str, sigma_coef:float=1.0):
+                                    title:str, title_left:str, title_right:str, 
+                                    max_stdev_design:float, sigma_coef:float=1.0):
     if not isinstance(fig_size, tuple):
         raise TypeError(f"fig_size should be a tuple, got the type of {type(fig_size).__name__}")
     if any([not isinstance(fs, int) for fs in fig_size]):
@@ -132,13 +130,11 @@ def plot_GPAL_compare_uncertainty(fig_size:Tuple[int, int], font_size:int, fit_d
         raise ValueError(f"sigma_coef should be non-negative, got {sigma_coef}.")
     if not isinstance(title, str):
         raise TypeError(f"title should be a string value, got the type of {type(title).__name__}.")
-    if not isinstance(titleLeft, str):
-        raise TypeError(f"titleLeft should be a string value, got the type of {type(titleLeft).__name__}.")
-    if not isinstance(titleRight, str):
-        raise TypeError(f"titleRight should be a string value, got the type of {type(titleRight).__name__}.")
-    if not isinstance(file_name, str):
-        raise TypeError(f"file_name should be a string value, got the type of {type(title).__name__}.")
-
+    if not isinstance(title_left, str):
+        raise TypeError(f"titleLeft should be a string value, got the type of {type(title_left).__name__}.")
+    if not isinstance(title_right, str):
+        raise TypeError(f"titleRight should be a string value, got the type of {type(title_right).__name__}.")
+    
     fig, (ax1, ax2)=plt.subplots(1,2, figsize=fig_size)
     
     ax1.scatter(fit_data_X[:-1], obs_data_Y[:-1], c='black', label='Data')
@@ -146,7 +142,7 @@ def plot_GPAL_compare_uncertainty(fig_size:Tuple[int, int], font_size:int, fit_d
     ax1.fill_between(predict_candidates_X.ravel(), post_mean-sigma_coef*post_stdev,
                      post_mean+sigma_coef*post_stdev, alpha=0.3, label='Uncertainty')
     ax1.axvline(x=fit_data_X[-1], color='green', linestyle='--', linewidth=3)
-    ax1.set_title(titleLeft, fontsize=font_size)
+    ax1.set_title(title_left, fontsize=font_size)
 
 
     ax2.scatter(fit_data_X, obs_data_Y, c='black')
@@ -155,18 +151,18 @@ def plot_GPAL_compare_uncertainty(fig_size:Tuple[int, int], font_size:int, fit_d
                      post_mean_after+sigma_coef*post_stdev_after, alpha=0.3)
     ax2.scatter(fit_data_X[-1], obs_data_Y[-1], c='red')
     ax2.axvline(x=max_stdev_design, color='green', linestyle='--', linewidth=3)
-    ax2.set_title(titleRight, fontsize=font_size)
+    ax2.set_title(title_right, fontsize=font_size)
 
     fig.suptitle(title, fontsize=font_size)
-
     plt.tight_layout()
-    plt.savefig(file_name)
+    
+    return fig, (ax1, ax2)
 
 
 
 
 def plot_frequency_histogram_1D(fig_size:Tuple[int, int], num_data:int, design_var:npt.NDArray, bins:int, ranges:Optional[Tuple[float, float]], 
-               xlabel:str, ylabel:str, title:str, file_name:str, mode:str="sum"):
+                                xlabel:str, ylabel:str, title:str, mode:str="sum"):
     if not isinstance(fig_size, tuple):
         raise TypeError(f"fig_size should be a tuple, got the type of {type(fig_size).__name__}.")
     if any([not isinstance(fs, int) for fs in fig_size]):
@@ -202,7 +198,8 @@ def plot_frequency_histogram_1D(fig_size:Tuple[int, int], num_data:int, design_v
         raise TypeError(f"title should be a string value, got the type of {type(title).__name__}.")
 
        
-    plt.figure(figsize=fig_size)
+    figure=plt.figure(figsize=fig_size)
+    ax=figure.add_subplot(1,1,1)
     hist, dv1_pos=np.histogram(design_var, bins=bins, range=ranges)
 
     if mode=='average':
@@ -214,7 +211,7 @@ def plot_frequency_histogram_1D(fig_size:Tuple[int, int], num_data:int, design_v
     bin_centers = dv1_pos[:-1] + bin_width / 2
     
 
-    plt.bar(
+    ax.bar(
         x=bin_centers,
         height=hist.ravel(),
         width=bin_width,
@@ -226,17 +223,16 @@ def plot_frequency_histogram_1D(fig_size:Tuple[int, int], num_data:int, design_v
         linewidth=0.8          
     )
 
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.title(title)
-    plt.savefig(file_name)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    return figure, ax
 
 
 
 def plot_frequency_histogram_2D(fig_size:Tuple[int, int], num_data:int, design_vars:npt.NDArray, 
                                 bins:list[int], ranges:Optional[list[list[float]]], 
-                                xlabel:str, ylabel:str, zlabel:str, title:str,
-                                file_name:str, mode:str='sum'):
+                                xlabel:str, ylabel:str, zlabel:str, title:str, mode:str='sum'):
     
     if not isinstance(fig_size, tuple):
         raise TypeError(f"fig_size should be a tuple, got the type of {type(fig_size).__name__}.")
@@ -288,8 +284,8 @@ def plot_frequency_histogram_2D(fig_size:Tuple[int, int], num_data:int, design_v
         raise ValueError(f"mode should be either 'average' or 'sum', got {mode}.")
 
        
-    fig=plt.figure()
-    ax=fig.add_subplot(projection='3d')
+    figure=plt.figure()
+    ax=figure.add_subplot(projection='3d')
     hist, dv1_edge, dv2_edge=np.histogram2d(design_vars[:,0], design_vars[:,1], bins=bins, range=ranges)
     if mode=="average":
         hist=hist/num_data
@@ -314,7 +310,7 @@ def plot_frequency_histogram_2D(fig_size:Tuple[int, int], num_data:int, design_v
     ax.set_zlabel(zlabel)
     ax.set_title(title)
 
-    plt.savefig(file_name)
+    return figure, ax
     
 
 

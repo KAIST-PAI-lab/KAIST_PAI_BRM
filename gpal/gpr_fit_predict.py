@@ -6,7 +6,8 @@ from typing import Optional
 import numpy.typing as npt
 from gpal.utils import prediction
 
-def gpr_fit(gpr:GaussianProcessRegressor, num_DVs: int, fit_data_X: npt.NDArray[np.float64], obs_data_Y: npt.NDArray[np.float64]):
+def gpr_fit(gpr:GaussianProcessRegressor, num_DVs: int, 
+            fit_data_X: npt.NDArray[np.float64], obs_data_Y: npt.NDArray[np.float64]):
     if not isinstance(gpr, GaussianProcessRegressor):
         raise TypeError(f"gpr should be a GaussianProcessRegressor object, got the type of {type(gpr).__name__}.")
     if not isinstance(num_DVs, int):
@@ -36,7 +37,9 @@ def gpr_fit(gpr:GaussianProcessRegressor, num_DVs: int, fit_data_X: npt.NDArray[
     return log_marginal_likelihood
 
 
-def gpr_predict(gpr:GaussianProcessRegressor, num_DVs:int, predict_candidates_X: npt.NDArray[np.float64], return_stdev:bool=False, return_covar:bool=False):
+def gpr_predict(gpr:GaussianProcessRegressor, num_DVs:int, 
+                predict_candidates_X: npt.NDArray[np.float64], 
+                return_stdev:bool=False, return_covar:bool=False):
     if not isinstance(gpr, GaussianProcessRegressor):
         raise TypeError(f"gpr should be a GaussianProcessRegressor object, got the type of {type(gpr).__name__}.")
     if not isinstance(num_DVs, int):
@@ -70,8 +73,8 @@ def gpr_predict(gpr:GaussianProcessRegressor, num_DVs:int, predict_candidates_X:
                                      return_std=return_stdev, 
                                      return_cov=return_covar)
     
-    posterior_predictions_per_candidates=prediction(mean=posterior_mean, std=posterior_stdev, cov=posterior_covariance)
-    return posterior_predictions_per_candidates
+    posterior_prediction_per_candidate=prediction(mean=posterior_mean, std=posterior_stdev, cov=posterior_covariance)
+    return posterior_prediction_per_candidate
 
 
 def next_design(posterior_prediction:prediction, num_DVs: int, predict_candidates_X:npt.NDArray[np.float64]):

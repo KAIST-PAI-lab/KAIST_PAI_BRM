@@ -335,8 +335,8 @@ def argsConstructor(num_kernels:int, kernel_type_list:list[int|str], kernel_argu
     kernel_type_names_list=["ConstantKernel", "DotProduct", "ExpSineSquared", "Exponentiation",
                             "Matern", "PairwiseKernel", "RBF", "RationalQuadratic", "WhiteKernel"]
     kernel_type_options_list=kernel_type_index_list+kernel_type_names_list
-    ktiMasks=[kt not in kernel_type_options_list for kt in kernel_type_list]
-    if any(ktiMasks):
+    kti_masks=[kt not in kernel_type_options_list for kt in kernel_type_list]
+    if any(kti_masks):
         raise ValueError(f"The kernel type should be the following: \n An integer index within (0,9) or the name of the valid kernel types.")
     
     kernel_types=[kernelTypeDic[kt] for kt in kernel_type_list if isinstance(kt, int)]

@@ -9,7 +9,7 @@ import gpal.utils
 
 
 def gpal_optimize(gpr:GaussianProcessRegressor, num_DVs: int, fit_data_X:npt.NDArray[np.float64], 
-                  obs_data_Y:npt.NDArray[np.float64], design_candidate_specifications:list[list], 
+                  obs_data_Y:npt.NDArray[np.float64], design_candidates_specification:list[list], 
                   design_masking_function:Callable, return_stdev: bool = True, return_covar:bool = False):
     if not isinstance(gpr, GaussianProcessRegressor):
         raise TypeError(f"gpr should be a GaussianProcessRegressor instance, got {type(gpr).__name__}.")
@@ -34,16 +34,16 @@ def gpal_optimize(gpr:GaussianProcessRegressor, num_DVs: int, fit_data_X:npt.NDA
         raise ValueError(f"obs_data_Y should be a 1D array, got {obs_data_Y.ndim} dimensions.")
     if obs_data_Y.shape[0]!=N:
         raise ValueError(f"obs_data_Y should be of length {N}, got {obs_data_Y.shape[0]}.")
-    if not isinstance(design_candidate_specifications, list):
-        raise TypeError(f"design_candidate_specifications should be a list.")
-    if not all([isinstance(spec, list) for spec in design_candidate_specifications]):
-        raise TypeError(f"design_candidate_specifications should contain list elements.")
-    if len(design_candidate_specifications)!=num_DVs:
-        raise ValueError(f"design_candidate_specifications should have {num_DVs} list elements, got {len(design_candidate_specifications)}.")
-    if not all([len(spec)==3 for spec in design_candidate_specifications]):
-        raise ValueError(f"The elements of design_candidate_specifications should be of length 3.")
-    if not all([isinstance(spec[2], int) for spec in design_candidate_specifications]):
-        raise TypeError(f"The 2-th element of each list in design_candidate_specifications should be an integer value.")
+    if not isinstance(design_candidates_specification, list):
+        raise TypeError(f"design_candidates_specification should be a list.")
+    if not all([isinstance(spec, list) for spec in design_candidates_specification]):
+        raise TypeError(f"design_candidates_specification should contain list elements.")
+    if len(design_candidates_specification)!=num_DVs:
+        raise ValueError(f"design_candidates_specification should have {num_DVs} list elements, got {len(design_candidates_specification)}.")
+    if not all([len(spec)==3 for spec in design_candidates_specification]):
+        raise ValueError(f"The elements of design_candidates_specification should be of length 3.")
+    if not all([isinstance(spec[2], int) for spec in design_candidates_specification]):
+        raise TypeError(f"The 2-th element of each list in design_candidates_specification should be an integer value.")
     if not callable(design_masking_function):
         raise TypeError(f"design_masking_function should be a callable function, got the type of {type(design_masking_function).__name__}.")
     masking_function_params_num=len(inspect.signature(design_masking_function).parameters)
@@ -57,20 +57,20 @@ def gpal_optimize(gpr:GaussianProcessRegressor, num_DVs: int, fit_data_X:npt.NDA
 
     design_candidates=[]
     for i in range(num_DVs):
-        start_value=design_candidate_specifications[i][0]
-        end_value=design_candidate_specifications[i][1]
-        interval_value=design_candidate_specifications[i][2]
-        num_candidates_per_axis=int((end_value-start_value)/interval_value)+1
-        design_candidates.append(np.linspace(start_value, end_value, num_candidates_per_axis))
+        start_value=design_candidates_specification[i][0]
+        end_value=design_candidates_specification[i][1]
+        interval_value=design_candidates_specification[i][2]
+        candidates_num_per_axis=int((end_value-start_value)/interval_value)+1
+        design_candidates.append(np.linspace(start_value, end_value, candidates_num_per_axis))
 
-    grid_of_design_candidates=list(np.meshgrid(*design_candidates, indexing='ij'))
+    design_candidates_grid=list(np.meshgrid(*design_candidates, indexing='ij'))
 
-    design_candidate_coordinates=np.stack(grid_of_design_candidates,-1).T
+    design_candidate_coordinates=np.stack(design_candidates_grid, -1).T
     design_mask_binary=design_masking_function(*design_candidate_coordinates)  # Masking the 2D coordinates with a lambda equation
     predict_candidates_X=design_candidate_coordinates[:,design_mask_binary].T
     log_marginal_likelihood=gpr_fit(gpr=gpr, num_DVs=num_DVs, fit_data_X=fit_data_X, obs_data_Y=obs_data_Y)
     posterior_prediction=gpr_predict(gpr, num_DVs=num_DVs, predict_candidates_X=predict_candidates_X,
-                    return_stdev=return_stdev, return_covar=return_covar)
+                                    return_stdev=return_stdev, return_covar=return_covar)
     next_design_coordinate, post_mean, post_stdev=next_design(posterior_prediction=posterior_prediction, num_DVs=num_DVs,
                                                             predict_candidates_X=predict_candidates_X)
 
