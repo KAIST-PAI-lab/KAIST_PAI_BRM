@@ -1,9 +1,13 @@
+#%%
+from typing import Optional, Tuple
+
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
-from typing import Tuple, Optional
-import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
 from mpl_toolkits.mplot3d.axes3d import Axes3D
-
+from sklearn.metrics import mean_squared_error
 
 
 def plot_GPAL_uncertainty(fig_size:Tuple[int, int], fit_data_X:npt.NDArray, predict_candidates_X:npt.NDArray, 
@@ -312,8 +316,103 @@ def plot_frequency_histogram_2D(fig_size:Tuple[int, int], num_data:int, design_v
 
     return figure, ax
     
+#%%
 
+def plot_convergence(gp_regressor, x_range, y_range, x_data_points, y_data_points, figure_size=(12, 4)):
+    """_summary_
 
+    Args:
+        gp_regressor (_type_): _description_
+        x_range (_type_): All possible x values
+        y_range (_type_): All possible y values
+        data_points_x (_type_): _description_
+        data_points_y (_type_): _description_
+    """
 
+    x_range_reshaped_for_gpr = np.array(x_range).reshape(-1, 1)
 
+    num_data_points = len(x_data_points)
+        
+    figure, axes = plt.subplots(1, 2, figsize=figure_size)
+    gp_mean_function_list = []
+    # Draw curves except the final one
+    for i in range(1, num_data_points):
+        x_data_points_each_trial = x_data_points[:i]
+        x_data_points_reshaped_for_gpr = np.array(x_data_points_each_trial).reshape(-1, 1)
 
+        y_data_points_each_trial = y_data_points[:i]
+        y_data_points_reshaped_for_gpr = np.array(y_data_points_each_trial).reshape(-1, 1)
+        
+        gp_regressor.fit(x_data_points_reshaped_for_gpr, y_data_points_reshaped_for_gpr)
+
+        gp_mean_function = gp_regressor.predict(x_range_reshaped_for_gpr)
+
+        gp_mean_function_list.append(gp_mean_function)
+
+        axes[0].plot(x_range, gp_mean_function, alpha=0.25, color="skyblue")
+
+    # Draw the final curve
+    x_data_points_reshaped_for_gpr = np.array(x_data_points).reshape(-1, 1)
+    y_data_points_reshaped_for_gpr = np.array(y_data_points).reshape(-1, 1)
+    print(len(y_data_points_reshaped_for_gpr))
+    gp_regressor.fit(x_data_points_reshaped_for_gpr, y_data_points_reshaped_for_gpr)
+    gp_mean_function_final = gp_regressor.predict(x_range_reshaped_for_gpr)
+    gp_mean_function_list.append(gp_mean_function_final)
+
+    axes[0].plot(x_range, gp_mean_function_final, alpha=1, color="orange", linewidth=2)
+
+    # set plot margins
+    ymin, ymax = min(y_range), max(y_range)
+    span = ymax - ymin
+    margin = 0.1 * span
+    axes[0].set_ylim(ymin - margin, ymax + margin)
+
+    # data points scatter
+    axes[0].scatter(x_data_points, y_data_points, c="black", s=10)
+
+    # show the finalized plot
+    figure.tight_layout()
+
+    # plt.savefig()
+    # figure.show()
+
+    # generate plot 2: MSE value between each trial and the final trial
+
+    mse_values = []
+    for i in range(num_data_points):
+        mse = mean_squared_error(gp_mean_function_list[i], gp_mean_function_final)
+        mse_values.append(mse)
+
+    trials = np.arange(1, len(mse_values)+1) 
+    axes[1].plot(trials, mse_values, marker='o', linewidth=2)
+    axes[1].xaxis.set_major_locator(MultipleLocator(1))
+    axes[1].set_xlim(0.5, len(mse_values)+0.5)
+    axes[1].set_xlabel("Trial (cumulative)")
+    axes[1].set_ylabel("MSE vs. final GP")
+    axes[1].set_title("Convergence (MSE to final)")
+    axes[1].grid(True, alpha=0.3)
+
+    figure.tight_layout()
+
+    return figure, axes
+
+# %%
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import RBF
+from sklearn.gaussian_process.kernels import ConstantKernel as C
+from sklearn.gaussian_process.kernels import WhiteKernel
+
+# example data: subject #081114 GPAL results
+x_range = np.linspace(5, 500, 500)
+y_range = np.linspace(5, 500, 500)
+x_data_points = [355, 5, 10, 500, 145, 260, 445, 75, 500, 215, 5, 390, 500, 5, 500, 5, 500, 250, 5, 500]
+y_data_points = [314.5, 5, 8, 494, 169.5, 233, 421.5, 86, 478, 169, 2, 383, 496, 1.5, 449, 2.5, 491, 331.5, 5, 498.5]
+
+kernel = RBF(length_scale=2.0) + WhiteKernel(
+    noise_level=0.05, noise_level_bounds=(1e-10, 1e1)
+)
+
+gp = GaussianProcessRegressor(kernel=kernel, normalize_y=True, n_restarts_optimizer=100)
+
+figure, axes = plot_convergence(gp_regressor=gp, x_range=x_range, y_range=y_range, x_data_points=x_data_points, y_data_points=y_data_points)
+figure.show()
