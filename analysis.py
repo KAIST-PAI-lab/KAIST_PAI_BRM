@@ -1,4 +1,4 @@
-from gpal.gpal_plot import plot_GPAL_uncertainty, plot_GPAL_compare_uncertainty
+from gpal.gpal_plot import plot_GPAL_uncertainty, plot_frequency_histogram_1D, plot_GPAL_compare_uncertainty
 import pandas as pd
 import numpy as np
 import os
@@ -16,8 +16,13 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-def plot_GPAL_fit(fig_size: Tuple[int, int], gpr_dir: str, sbj_dir: str, fig_dir: str,
-                   sbj_id: int, predict_candidates_X:NDArray, trial_idx:int,):
+def plot_GPAL_fit(fig_size: Tuple[int, int], 
+                  gpr_dir: str, 
+                  sbj_dir: str, 
+                  fig_dir: str,
+                  sbj_id: int, 
+                  predict_candidates_X:NDArray, 
+                  trial_idx:int):
     
     filePath=os.path.join(sbj_dir, f"gpal_results_{sbj_id}.csv")
     if os.path.exists(filePath):
@@ -32,40 +37,16 @@ def plot_GPAL_fit(fig_size: Tuple[int, int], gpr_dir: str, sbj_dir: str, fig_dir
     gns=df['given_number'].to_numpy()
     ests=df['estimation'].to_numpy()
     gns=np.expand_dims(gns, -1)
-    ests=np.expand_dims(ests, -1)
+    fit_data_X=gns[:trial_idx+1]
+    obs_data_Y=ests[:trial_idx+1]
 
     original_kernel=gpr.kernel
-    print(f"The original kernel: {original_kernel}")
+    new_noise_kernel=original_kernel.clone_with_theta(original_kernel.theta)
+    new_noise_kernel.set_params(k2__noise_level_bounds=(1e-1, 1e5))
 
-    '''
-    train_index=0
-    chosen_index=0
-    fit_data_X=np.zeros((gns.shape[0],1))
-    obs_data_Y=np.zeros((ests.shape[0],))
-    gpr=GaussianProcessRegressor(kernel=original_kernel, normalize_y=True, n_restarts_optimizer=100)
-    while train_index<gns.shape[0]:
-        if train_index==0:
-            fit_data_X[chosen_index]=gns[train_index]
-            obs_data_Y[chosen_index]=ests[train_index]
-            gpr.fit(fit_data_X[:chosen_index+1], obs_data_Y[chosen_index+1])
-            chosen_index=chosen_index+1
-            train_index=train_index+1
-        else:
-            post_mean, post_stdev=gpr.predict(np.expand_dims(predict_candidates_X, -1), return_std=True)
-            max_stdev_index=np.argmax(post_stdev)
-            post_mean_stdev=np.std(post_mean)
-            if max_stdev_index < outlier_thres * post_mean_stdev:
-                fit_data_X[chosen_index]=gns[train_index]
-                obs_data_Y[chosen_index]=ests[train_index]
-                chosen_index=chosen_index+1
-            train_index=train_index+1
-            gpr.fit(fit_data_X[:chosen_index+1], obs_data_Y[:chosen_index+1])
-    fit_data_X=fit_data_X[:chosen_index]
-    obs_data_Y=obs_data_Y[:chosen_index]
-    '''
 
-    gpr=GaussianProcessRegressor(original_kernel, normalize_y=True, n_restarts_optimizer=100)
-    for fit_index in range(1, chosen_index+1):
+    gpr=GaussianProcessRegressor(new_noise_kernel, normalize_y=True, n_restarts_optimizer=100)
+    for fit_index in range(1, trial_idx+1):
         gpr.fit(fit_data_X[:fit_index], obs_data_Y[:fit_index])
     print(f"The fitted kernel: {gpr.kernel_}")
 
@@ -74,45 +55,71 @@ def plot_GPAL_fit(fig_size: Tuple[int, int], gpr_dir: str, sbj_dir: str, fig_dir
     title=f"Subject #{sbj_id}, Trial #{trial_idx-1}"
     if not os.path.exists(fig_dir):
         os.mkdir(fig_dir)
-    filename=os.path.join(fig_dir, f"{sbj_id}_uncertainty_trial_{trial_idx}.png")
  
     plot_GPAL_uncertainty(fig_size=fig_size,
-                            fit_data_X=fit_data_X, 
-                            predict_candidates_X=predict_candidates_X, 
-                            obs_data_Y=obs_data_Y, 
-                            post_mean=post_mean_final, 
-                            post_stdev=post_stdev_final, 
-                            xlabel='Given Number', 
-                            ylabel='Estiamte', 
-                            title=title, 
-                            file_name=filename,
-                            sigma_coef=1.0)
+                          fit_data_X=fit_data_X, 
+                          obs_data_Y=obs_data_Y, 
+                          predict_candidates_X=predict_candidates_X, 
+                          post_mean=post_mean_final, 
+                          post_stdev=post_stdev_final, 
+                          x_label='Given Number', 
+                          y_label='Estiamte', 
+                          title=title, 
+                          sigma_coef=1.0)
 
-    
+
+    gpr2=GaussianProcessRegressor(original_kernel, normalize_y=True, n_restarts_optimizer=100)
+    for fit_index in range(1, trial_idx):
+        gpr2.fit(fit_data_X[:fit_index], obs_data_Y[:fit_index])
+    post_mean_previous, post_stdev_previous=gpr.predict(np.expand_dims(predict_candidates_X, -1), return_std=True)
+    max_stdev_design=predict_candidates_X[np.argmax(post_stdev_previous)]
+    gpr2.fit(fit_data_X[:trial_idx+1], obs_data_Y[:trial_idx+1])
+    post_mean_target, post_stdev_target=gpr.predict(np.expand_dims(predict_candidates_X, -1), return_std=True)
+    plot_GPAL_compare_uncertainty(fig_size=fig_size, 
+                                  font_size=16,
+                                  fit_data_X=fit_data_X,
+                                  obs_data_Y=obs_data_Y,
+                                  predict_candidates_X=predict_candidates_X,
+                                  post_mean_previous=post_mean_previous,
+                                  post_stdev_previous=post_stdev_previous,
+                                  post_mean_target=post_mean_target,
+                                  post_stdev_target=post_stdev_target,
+                                  title=f"Subject #{sbj_id}",
+                                  title_previous=f"Trial {trial_idx-1}",
+                                  title_target=f"Trial #{trial_idx}",
+                                  max_stdev_design=max_stdev_design,
+                                  sigma_coef=1.0
+                                  )
 
 
 def plotFreq(figsize:Tuple[int, int], dir:str, opt:str, n_trials: int, bin:int, ranges:Optional[Tuple[float, float]], mode:str='sum'):
     
     filenames=[]
-    contents=os.listdir(dir)
-    for file in contents:
+    subject_dirs=os.listdir(dir)
+    for sbj_dir in subject_dirs:
         target=f'{opt}_results_'
-        if target==file[:len(target)]:
-            filenames.append(file)
+        sbj_files=os.listdir(os.path.join(dir, sbj_dir))
+        for file in sbj_files:
+            if target==file[:len(target)]:
+                filenames.append(os.path.join(dir, sbj_dir, file))
     
     N=len(filenames)
-    gns=np.zeros((N, n_trials-1))
+    gns_accum=np.zeros((N, n_trials-1))
     for i, file in enumerate(filenames):
-        df=pd.read_csv(os.path.join(dir, file))
-        gns[i]=df['given_number'][1:]
-    gns=gns.ravel()
-    plotFreq1D(figsize, N, gns, bin, ranges, mode='average', xlabel="Given Number (Optimized)", title=f"Design selection frequencies ({mode})")
+        df=pd.read_csv(file)
+        gns_accum[i]=df['given_number'][1:]
+    gns_accum=gns_accum.ravel()
+    plot_frequency_histogram_1D(fig_size=figsize, 
+                                num_data=N, 
+                                design_var=gns_accum, 
+                                bins=bin, 
+                                ranges=ranges,  
+                                x_label="Given Number (Optimized)",
+                                y_label="Frequency",
+                                title=f"Design selection frequencies ({mode})",                                
+                                mode='average')
 
-'''
-plot_GPAL_compare_uncertainty(fig_size=fig_size, 
-                            font_size=, gns[:trial_idx], x_pred, ests[:trial_idx], means[trial_idx-1], stds[trial_idx-1], post_mean, post_std,
-#           "Given Number", "Estimate", title=title, titleLeft=titleLeft, titleRight=titleRight, sigma_coef=1.0, maxStdDesign=maxStdDesign)
-'''
+
 
 if __name__=="__main__":
     figsize=(16, 8)
@@ -120,11 +127,22 @@ if __name__=="__main__":
     pred_cand_X=np.linspace(5, 500, (500-5)//5+1)
     sbjID=25081110
     opt='gpal'
+    results_dir=os.path.join('experiment_results', '')
     sbj_dir=os.path.join('experiment_results', f'participant_{sbjID}')
     gpr_dir=os.path.join('models', f"{sbjID}")
     fig_dir=os.path.join('figures', f"{sbjID}")
 
-    plot_GPAL_fit(fig_size=figsize, gpr_dir=gpr_dir, sbj_dir=sbj_dir, 
-                  fig_dir=fig_dir,sbj_id=sbjID, predict_candidates_X=pred_cand_X, 
-                  trial_idx=19+1, outlier_thres=2.5)
-    #plotFreq(figsize, opt, dir, n_trials, bin=10, ranges=(0.0, 500.0), mode='sum')#
+    plot_GPAL_fit(fig_size=figsize, 
+                  gpr_dir=gpr_dir, 
+                  sbj_dir=sbj_dir, 
+                  fig_dir=fig_dir,
+                  sbj_id=sbjID, 
+                  predict_candidates_X=pred_cand_X, 
+                  trial_idx=19+1)
+    plotFreq(figsize=figsize,
+             dir=results_dir,
+             n_trials=n_trials, 
+             opt='gpal',
+             bin=10, 
+             ranges=(0.0, 500.0), 
+             mode='sum')#

@@ -10,9 +10,46 @@ from mpl_toolkits.mplot3d.axes3d import Axes3D
 from sklearn.metrics import mean_squared_error
 
 
-def plot_GPAL_uncertainty(fig_size:Tuple[int, int], fit_data_X:npt.NDArray, predict_candidates_X:npt.NDArray, 
-                        obs_data_Y:npt.NDArray, post_mean:npt.NDArray, post_stdev:npt.NDArray, 
-                        x_label:str, y_label:str, title:str, sigma_coef:float=1.0):
+## This function plots a 2-dimensional uncertainty plot.
+## This 'uncertainty plot' visualizes the experimental data as a scatterplot.
+## Then it visualizes the posterior mean calculated for each design candidate,
+## and the uncertainty range determined by the associated posterior standard deviations.
+
+## Parameter Descriptions
+## fig_size: The size of the figure. Must be a tuple holding integer values.
+## fit_data_X: The numpy array recording the provided design variables for each given experimental trial. 
+## obs_data_Y: The numpy array recording the subject responses for each given experimental trial.
+## predict_candidates_X: The numpy array containing the design candidates for GPAL optimization.
+## post_mean: The numpy array holding the posterior mean values for each design candidate (in predict_candidate_X).
+## post_stdev: The numpy array holding the posterior standard deviation value for each design candidate (in predict_candidate_X).
+## x_label: The text label associated with the x-axis (design candidates).
+## y_label: The text label associated with the y-axis (subject responses).
+## title: The title of the figure.
+## sigma_coef: The coefficient determining the uncertainty range. Must be a positive float value.
+
+## NOTE: The uncertainty range is defined as the following:
+##       [post_mean - sigma_coef * post_stdev, post_mean + sigma_coef * post_stdev]
+## NOTE: The post_mean and post_stdev must be the posterior statistics 
+##       obtained by gpr.predict(predict_candidates_X) after gpr.fit(fit_data_X, obs_data_Y).
+##       In other words, post_mean and post_stdev must hold posterior statistics
+##       for GPAL optimization of the upcoming (next) trial.
+##       Then GPAL will select the design candidate with the largest posterior standard deviation,
+##       which is equivalent to the largest uncertainty range.
+
+## Return Value Descriptions
+## figure: The resulting figure.
+## ax: A plot visualized in the resulting figure.
+
+def plot_GPAL_uncertainty(fig_size:Tuple[int, int], 
+                          fit_data_X:npt.NDArray, 
+                          obs_data_Y:npt.NDArray, 
+                          predict_candidates_X:npt.NDArray, 
+                          post_mean:npt.NDArray, 
+                          post_stdev:npt.NDArray, 
+                          x_label:str, 
+                          y_label:str, 
+                          title:str, 
+                          sigma_coef:float=1.0):
     if not isinstance(fig_size, Tuple):
         raise TypeError(f"fig_size should be a tuple, got the type of {type(fig_size).__name__}.")
     if any([not isinstance(fs, int) for fs in fig_size]):
@@ -58,10 +95,16 @@ def plot_GPAL_uncertainty(fig_size:Tuple[int, int], fit_data_X:npt.NDArray, pred
     
     figure=plt.figure(figsize=fig_size)
     ax=figure.add_subplot(1,1,1)
+    
+    ## Plots the experiment data as a scatterplot.
     ax.scatter(fit_data_X.ravel(), obs_data_Y, c='black', label='Data')
+    ## Plots the posterior mean values associated with every design candidate.
     ax.plot(predict_candidates_X, post_mean, label="Prediction", linewidth=2.5, color='black')
+    ## Plots the uncertainty range with semi-transparent color.
     ax.fill_between(predict_candidates_X, post_mean-sigma_coef*post_stdev, 
                      post_mean+sigma_coef*post_stdev, alpha=0.3, label='Uncertainty')
+    
+    ## Setting the title and labels.
     ax.set_title(title)
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
@@ -71,13 +114,54 @@ def plot_GPAL_uncertainty(fig_size:Tuple[int, int], fit_data_X:npt.NDArray, pred
 
 
 
+## This function plots the uncertainty plot at two consecutive trials.
+## Since GPAL optimizes the experiment design adaptively, 
+## we can visualize how the uncertainty plot changes after a single iteration of GPAL.
+## This figure visualizes the uncertainty plot at a certain 'target' trial (on the right subplot) 
+## and at the 'previous' trial (on the left subplot).
+## The uncertainty is calculated based on the GPAL optimization conducted up to the (target/previous) trial.
+## We can directly observe how the uncertainty interval shrinks at the GPAL-selected design point.
+## Moreover, a dotted vertical line indicates the design candidate value
+## whose associated posterior standard deviation is the largest.
+## We can see the design coordinate of the new experiment design (a red dot in the target trial)
+## exactly corresponds to the position of the vertical line in the previous trial.
 
-def plot_GPAL_compare_uncertainty(fig_size:Tuple[int, int], font_size:int, fit_data_X:npt.NDArray, 
-                                    predict_candidates_X:npt.NDArray, obs_data_Y:npt.NDArray, 
-                                    post_mean:npt.NDArray, post_stdev:npt.NDArray, 
-                                    post_mean_after:npt.NDArray, post_stdev_after:npt.NDArray,
-                                    title:str, title_left:str, title_right:str, 
-                                    max_stdev_design:float, sigma_coef:float=1.0):
+## Parameter descriptions
+## fig_size: The size of the figure. Must be a tuple holding integer values.
+## font_size: The font size of the text in the figure. Must be positive.
+## fit_data_X: The numpy array recording the provided design variables, up to the target trial
+## obs_data_Y: The numpy array recording the subject responses, up to the target trial
+## predict_candidates_X: The numpy array containing the design candidates for GPAL optimization.
+## post_mean_previous: The numpy array holding the posterior mean value for each design candidate, up to the previous trial
+## post_stdev_previous: The numpy array holding the posterior standard deviation value for each design candidate, up to the previous trial.
+## post_mean_target: The numpy array holding the posterior mean values, up to the target trial.
+## post_stdev_target: The numpy array holding the posterior standard deviation values, up to the target trial.
+## title: The title of the whole figure.
+## title_previous: The title of the left figure (GPAL up to the previous trial)
+## title_target: The title of the right figure (GPAL up to the target trial)
+## max_stdev_design: The design coordinate with maximum posterior standard deviation, in the previous trial.
+## sigma_coef: The coefficient determining the uncertainty range. Must be a positive float value.
+
+## Return Value Specifications
+## figure: The whole resulting figure.
+## ax1: A plot visualized in the left subplot of the figure.
+## ax2: A plot visualized in the right subplot of the figure.
+
+def plot_GPAL_compare_uncertainty(fig_size:Tuple[int, int], 
+                                  font_size:int, 
+                                  fit_data_X:npt.NDArray, 
+                                  obs_data_Y:npt.NDArray,  
+                                  predict_candidates_X:npt.NDArray, 
+                                  post_mean_previous:npt.NDArray, 
+                                  post_stdev_previous:npt.NDArray, 
+                                  post_mean_target:npt.NDArray, 
+                                  post_stdev_target:npt.NDArray,
+                                  title:str, 
+                                  title_previous:str, 
+                                  title_target:str, 
+                                  max_stdev_design:float, 
+                                  sigma_coef:float=1.0):
+    
     if not isinstance(fig_size, tuple):
         raise TypeError(f"fig_size should be a tuple, got the type of {type(fig_size).__name__}")
     if any([not isinstance(fs, int) for fs in fig_size]):
@@ -90,8 +174,8 @@ def plot_GPAL_compare_uncertainty(fig_size:Tuple[int, int], font_size:int, fit_d
         raise ValueError(f"font_size should be a positive value, got {font_size}.")
     if not isinstance(fit_data_X, np.ndarray):
         raise TypeError(f"fit_data_X should be a numpy array, got the type of {type(fit_data_X).__name__}.")
-    if fit_data_X.ndim!=1:
-        raise ValueError(f"fit_data_X should be a 1D array, got {fit_data_X.ndim} dimensions.")
+    if fit_data_X.ndim!=2:
+        raise ValueError(f"fit_data_X should be a 2D array, got {fit_data_X.ndim} dimensions.")
     if not isinstance(predict_candidates_X, np.ndarray):
         raise TypeError(f"predict_candidates_X should be a numpy array, got the type of {type(predict_candidates_X).__name__}.")
     if predict_candidates_X.ndim!=1:
@@ -100,32 +184,32 @@ def plot_GPAL_compare_uncertainty(fig_size:Tuple[int, int], font_size:int, fit_d
         raise TypeError(f"obs_data_Y should be a numpy array, got the type of {type(obs_data_Y).__name__}.")
     if obs_data_Y.ndim!=1:
         raise ValueError(f"obs_data_Y should be a 1D array, got {obs_data_Y.ndim} dimensions.")
-    if not isinstance(post_mean, np.ndarray):
-        raise TypeError(f"post_mean should be a numpy array, got the type of {type(post_mean).__name__}.")
-    if post_mean.ndim!=1:
-        raise ValueError(f"post_mean should be a 1D array, got {post_mean.ndim} dimensions.")
-    if not isinstance(post_stdev, np.ndarray):
-        raise TypeError(f"post_stdev should be a numpy array, got the type of {type(post_stdev).__name__}.")
-    if post_stdev.ndim!=1:
-        raise ValueError(f"post_stdev should be a 1D array, got {post_stdev.ndim} dimensions.")
-    if not isinstance(post_mean_after, np.ndarray):
-        raise TypeError(f"post_mean_after should be a numpy array, got the type of {type(post_mean_after).__name__}.")
-    if post_mean_after.ndim!=1:
-        raise ValueError(f"post_mean_after should be a 1D array, got {post_mean_after.ndim} dimensions.")
-    if not isinstance(post_stdev_after, np.ndarray):
-        raise TypeError(f"post_stdev_after should be a numpy array, got the type of {type(post_stdev_after).__name__}.")
-    if post_stdev_after.ndim!=1:
-        raise ValueError(f"post_stdev_after should be a 1D array, got {post_stdev_after.ndim} dimensions.")
+    if not isinstance(post_mean_previous, np.ndarray):
+        raise TypeError(f"post_mean_previous should be a numpy array, got the type of {type(post_mean_previous).__name__}.")
+    if post_mean_previous.ndim!=1:
+        raise ValueError(f"post_mean_previous should be a 1D array, got {post_mean_previous.ndim} dimensions.")
+    if not isinstance(post_stdev_previous, np.ndarray):
+        raise TypeError(f"post_stdev_previous should be a numpy array, got the type of {type(post_stdev_previous).__name__}.")
+    if post_stdev_previous.ndim!=1:
+        raise ValueError(f"post_stdev_previous should be a 1D array, got {post_stdev_previous.ndim} dimensions.")
+    if not isinstance(post_mean_target, np.ndarray):
+        raise TypeError(f"post_mean_target should be a numpy array, got the type of {type(post_mean_target).__name__}.")
+    if post_mean_target.ndim!=1:
+        raise ValueError(f"post_mean_target should be a 1D array, got {post_mean_target.ndim} dimensions.")
+    if not isinstance(post_stdev_target, np.ndarray):
+        raise TypeError(f"post_stdev_target should be a numpy array, got the type of {type(post_stdev_target).__name__}.")
+    if post_stdev_target.ndim!=1:
+        raise ValueError(f"post_stdev_target should be a 1D array, got {post_stdev_target.ndim} dimensions.")
     if fit_data_X.shape[0]!=obs_data_Y.shape[0]:
         raise ValueError(f"fit_data_X and obs_data_Y should have equal number of data, got {fit_data_X.shape[0]} and {obs_data_Y.shape[0]}.")
-    if predict_candidates_X.shape[0]!=post_mean.shape[0]:
-        raise ValueError(f"predict_candidates_X and post_mean should have equal number of data, got {predict_candidates_X.shape[0]} and {post_mean.shape[0]}.")
-    if predict_candidates_X.shape[0]!=post_stdev.shape[0]:
-        raise ValueError(f"predict_candidates_X and post_stdev should have equal number of data, got {predict_candidates_X.shape[0]} and {post_stdev.shape[0]}.")
-    if predict_candidates_X.shape[0]!=post_mean_after.shape[0]:
-        raise ValueError(f"predict_candidates_X and post_mean_after should have equal number of data, got {predict_candidates_X.shape[0]} and {post_mean_after.shape[0]}.")
-    if predict_candidates_X.shape[0]!=post_stdev_after.shape[0]:
-        raise ValueError(f"predict_candidates_X and post_stdev_after should have equal number of data, got {predict_candidates_X.shape[0]} and {post_stdev_after.shape[0]}.")
+    if predict_candidates_X.shape[0]!=post_mean_previous.shape[0]:
+        raise ValueError(f"predict_candidates_X and post_mean_previous should have equal number of data, got {predict_candidates_X.shape[0]} and {post_mean.shape[0]}.")
+    if predict_candidates_X.shape[0]!=post_stdev_previous.shape[0]:
+        raise ValueError(f"predict_candidates_X and post_stdev_previous should have equal number of data, got {predict_candidates_X.shape[0]} and {post_stdev.shape[0]}.")
+    if predict_candidates_X.shape[0]!=post_mean_target.shape[0]:
+        raise ValueError(f"predict_candidates_X and post_mean_target should have equal number of data, got {predict_candidates_X.shape[0]} and {post_mean_after.shape[0]}.")
+    if predict_candidates_X.shape[0]!=post_stdev_target.shape[0]:
+        raise ValueError(f"predict_candidates_X and post_stdev_target should have equal number of data, got {predict_candidates_X.shape[0]} and {post_stdev_after.shape[0]}.")
     if not isinstance(max_stdev_design, float):
         raise TypeError(f"max_stdev_design should be a float value, got the type of {type(max_stdev_design).__name__}.")
     if not isinstance(sigma_coef, float):
@@ -134,39 +218,86 @@ def plot_GPAL_compare_uncertainty(fig_size:Tuple[int, int], font_size:int, fit_d
         raise ValueError(f"sigma_coef should be non-negative, got {sigma_coef}.")
     if not isinstance(title, str):
         raise TypeError(f"title should be a string value, got the type of {type(title).__name__}.")
-    if not isinstance(title_left, str):
-        raise TypeError(f"titleLeft should be a string value, got the type of {type(title_left).__name__}.")
-    if not isinstance(title_right, str):
-        raise TypeError(f"titleRight should be a string value, got the type of {type(title_right).__name__}.")
+    if not isinstance(title_previous, str):
+        raise TypeError(f"title_previous should be a string value, got the type of {type(title_left).__name__}.")
+    if not isinstance(title_target, str):
+        raise TypeError(f"title_target should be a string value, got the type of {type(title_right).__name__}.")
     
-    fig, (ax1, ax2)=plt.subplots(1,2, figsize=fig_size)
+    ## Creating a figure with two subplots.
+    figure, (ax1, ax2)=plt.subplots(1,2, figsize=fig_size)
     
+    ## Left subplot
+    ## Plotting the experiment data up to the previous trial.
     ax1.scatter(fit_data_X[:-1], obs_data_Y[:-1], c='black', label='Data')
-    ax1.plot(predict_candidates_X, post_mean, label="Prediction", linewidth=2.5, color='black')
-    ax1.fill_between(predict_candidates_X.ravel(), post_mean-sigma_coef*post_stdev,
-                     post_mean+sigma_coef*post_stdev, alpha=0.3, label='Uncertainty')
+    ## Plotting the posterior mean, calculated with so-far obtained experiment data.
+    ax1.plot(predict_candidates_X, post_mean_previous, label="Prediction", linewidth=2.5, color='black')
+    ## Plotting the uncertainty range for each design candidate.
+    ax1.fill_between(predict_candidates_X.ravel(), post_mean_previous-sigma_coef*post_stdev_previous,
+                     post_mean_previous+sigma_coef*post_stdev_previous, alpha=0.3, label='Uncertainty')
+    ## Plotting a dotted vertical line, at the design candidate associated with maximum posterior standard deviation.
     ax1.axvline(x=fit_data_X[-1], color='green', linestyle='--', linewidth=3)
-    ax1.set_title(title_left, fontsize=font_size)
+    ## Setting the title for the left subplot.
+    ax1.set_title(title_previous, fontsize=font_size)
 
-
+    ## Right subplot
+    ## Plotting the experiment data up to the target trial.
     ax2.scatter(fit_data_X, obs_data_Y, c='black')
-    ax2.plot(predict_candidates_X, post_mean_after, linewidth=2.5, color='black')
-    ax2.fill_between(predict_candidates_X.ravel(), post_mean_after-sigma_coef*post_stdev_after, 
-                     post_mean_after+sigma_coef*post_stdev_after, alpha=0.3)
+    ## Plotting the posterior mean, calculated with so-far obtained experiment data.
+    ax2.plot(predict_candidates_X, post_mean_target, linewidth=2.5, color='black')
+    ## Plotting the uncertainty range for each design candidate.
+    ax2.fill_between(predict_candidates_X.ravel(), post_mean_target-sigma_coef*post_stdev_target, 
+                     post_mean_target+sigma_coef*post_stdev_target, alpha=0.3)
+    ## Plotting an experiment data for the newly selected experimental design.
     ax2.scatter(fit_data_X[-1], obs_data_Y[-1], c='red')
+    ## Plotting a dotted vertical line, at the design candidate associated with maximums posterior standard deviation.
     ax2.axvline(x=max_stdev_design, color='green', linestyle='--', linewidth=3)
-    ax2.set_title(title_right, fontsize=font_size)
+    ## Setting the title for the right subplot.
+    ax2.set_title(title_target, fontsize=font_size)
 
-    fig.suptitle(title, fontsize=font_size)
+    ## Setting the title for the whole figure.
+    figure.suptitle(title, fontsize=font_size)
     plt.tight_layout()
     
-    return fig, (ax1, ax2)
+    return figure, ax1, ax2
 
 
 
+## This function plots the design selection frequencies of 1D GPAL as a histogram.
+## GPAL selects the optimal design value among design candidates in an adaptive manner.
+## We can observe the distribution of those 'selected' design values (of the design variable),
+## therefore examine features of the function of our interest.
+## As "1D" in the function name implies, this functions plots a 2D histogram,
+## where the x-axis denotes the design values and the y-axis indicates the frequencies.
 
-def plot_frequency_histogram_1D(fig_size:Tuple[int, int], num_data:int, design_var:npt.NDArray, bins:int, ranges:Optional[Tuple[float, float]], 
-                                xlabel:str, ylabel:str, title:str, mode:str="sum"):
+
+## Parameter Descriptions.
+## fig_size: The size of the figure. Must be a tuple holding integer values.
+## num_data: The number of selected design values (i.e. the optimal design candidates).  
+## design_var: A numpy array holding all selected design values.
+## bins: The number of equal-length bins dividing the range of selected design values.
+## ranges: A tuple indicating the total range of the selected design values.
+## x_label: The text label associated with the x-axis (design candidates).
+## y_label: The text label associated with the y-axis (subject responses).
+## title: The title of the figure.
+## mode: A string determining the mode of the histogram. Must be either 'sum' or 'average'.
+
+
+## NOTE: The ranges parameter will be automatically set to the folloiwng, if not specified explicitly.
+##       ranges = (np.min(design_var), np.max(design_var))
+
+## Return Value Specifications
+## figure: The whole resulting figure.
+## ax: A plot visualized in the figure.
+
+def plot_frequency_histogram_1D(fig_size:Tuple[int, int], 
+                                num_data:int, 
+                                design_var:npt.NDArray, 
+                                bins:int, 
+                                ranges:Optional[Tuple[float, float]], 
+                                x_label:str, 
+                                y_label:str, 
+                                title:str, 
+                                mode:str="sum"):
     if not isinstance(fig_size, tuple):
         raise TypeError(f"fig_size should be a tuple, got the type of {type(fig_size).__name__}.")
     if any([not isinstance(fs, int) for fs in fig_size]):
@@ -194,32 +325,35 @@ def plot_frequency_histogram_1D(fig_size:Tuple[int, int], num_data:int, design_v
         raise TypeError(f"mode should be a string value, got the type of {type(mode).__name__}.")
     if mode not in ["average", "sum"]:
         raise ValueError(f"mode should be either 'average' or 'sum', got {mode}.")
-    if not isinstance(xlabel, str):
-        raise TypeError(f"xlabel should be a string value, got the type of {type(xlabel).__name__}.")
-    if not isinstance(ylabel, str):
-        raise TypeError(f"ylabel should be a string value, got the type of {type(ylabel).__name__}.")
+    if not isinstance(x_label, str):
+        raise TypeError(f"x_label should be a string value, got the type of {type(x_label).__name__}.")
+    if not isinstance(y_label, str):
+        raise TypeError(f"y_label should be a string value, got the type of {type(y_label).__name__}.")
     if not isinstance(title, str):
         raise TypeError(f"title should be a string value, got the type of {type(title).__name__}.")
 
-       
+    ## Drawing a figure
     figure=plt.figure(figsize=fig_size)
     ax=figure.add_subplot(1,1,1)
-    hist, dv1_pos=np.histogram(design_var, bins=bins, range=ranges)
 
+    ## Creating a histogram with np.nistogram()
+    ## hist: The values of the resulting histogram.
+    ## dv1_pos: The values at the edge of each bins. 
+    hist, dv1_pos=np.histogram(design_var, bins=bins, range=ranges)
     if mode=='average':
         hist=hist/num_data
 
-
-    freq_pos=0
+    ## Determining the width of each bar in the figure.
     bin_width = (ranges[1] - ranges[0]) / bins if ranges else dv1_pos[1] - dv1_pos[0]
+    ## Determining the position (x-coordinate) of the center of each bar.
     bin_centers = dv1_pos[:-1] + bin_width / 2
     
-
+    ## Drawing a bar plot with the obtained histogram values
     ax.bar(
         x=bin_centers,
         height=hist.ravel(),
         width=bin_width,
-        bottom=freq_pos,
+        bottom=0,
         align='center',
         color='skyblue',       
         alpha=0.6,             
@@ -227,9 +361,11 @@ def plot_frequency_histogram_1D(fig_size:Tuple[int, int], num_data:int, design_v
         linewidth=0.8          
     )
 
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
+    ## Setting the labels and the title.
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
     ax.set_title(title)
+
     return figure, ax
 
 
