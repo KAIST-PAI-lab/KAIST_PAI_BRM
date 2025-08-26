@@ -104,9 +104,9 @@ def plot_GPAL_uncertainty(fig_size:Tuple[int, int],
                      post_mean+sigma_coef*post_stdev, alpha=0.3, label='Uncertainty')
     
     ## Setting the title and labels.
-    ax.set_title(title)
-    ax.set_xlabel(x_label)
-    ax.set_ylabel(y_label)
+    ax.set_title(title, fontsize=28)
+    ax.set_xlabel(x_label, fontsize=24)
+    ax.set_ylabel(y_label, fontsize=24)
     
     return figure, ax
 

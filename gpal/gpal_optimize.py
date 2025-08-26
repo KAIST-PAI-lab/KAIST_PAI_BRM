@@ -8,9 +8,14 @@ import gpal.utils
 
 
 
-def gpal_optimize(gpr:GaussianProcessRegressor, num_DVs: int, fit_data_X:npt.NDArray[np.float64], 
-                  obs_data_Y:npt.NDArray[np.float64], design_candidates_specification:list[list], 
-                  design_masking_function:Callable, return_stdev: bool = True, return_covar:bool = False):
+def gpal_optimize(gpr:GaussianProcessRegressor, 
+                  num_DVs: int, 
+                  fit_data_X:npt.NDArray[np.float64], 
+                  obs_data_Y:npt.NDArray[np.float64], 
+                  design_candidates_specification:list[list], 
+                  design_masking_function:Callable, 
+                  return_stdev: bool = True, 
+                  return_covar:bool = False):
     if not isinstance(gpr, GaussianProcessRegressor):
         raise TypeError(f"gpr should be a GaussianProcessRegressor instance, got {type(gpr).__name__}.")
     if not isinstance(num_DVs, int):
