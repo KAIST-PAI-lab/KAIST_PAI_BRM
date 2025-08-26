@@ -4,7 +4,7 @@ assumed_function: "one_cyclic_power"
 
 # "mixed_log_linear" or "one_cyclic_power"
 
-function_names: ["mixed_log_linear", "one_cyclic_power"]
+function_names: ["mixed_log_linear", "one_cyclic_power", "two_cyclic_power"]
 
 parameter_lists:
   N_MAX: &N_MAX 500
@@ -32,8 +32,8 @@ parameter_lists:
     param_log_mix_range_end: 1.0
 
     param_noise_initial: 50
-    param_noise_range_start: 1
-    param_noise_range_end: *N_MAX
+    param_noise_range_start: 10
+    param_noise_range_end: 100
 
   params_ADO_mixed_log_linear:
     grid_parameters:
@@ -71,9 +71,9 @@ parameter_lists:
     param_exponent_range_start: 0.01
     param_exponent_range_end: 5
 
-    param_noise_initial: 10
-    param_noise_range_start: 1
-    param_noise_range_end: *N_MAX
+    param_noise_initial: 50
+    param_noise_range_start: 10
+    param_noise_range_end: 100
 
   params_ADO_one_cyclic_power:
     grid_parameters:
@@ -90,31 +90,21 @@ parameter_lists:
 
   # two cyclic power model
   params_two_cyclic_power:
-    param_exponent_left: 1
-    param_exponent_right: 1
-    param_noise: 10 # only in available in the likelihood function
+    param_exponent: 1
+    param_noise: 10 # only available in the likelihood function
 
   params_optimize_two_cyclic_power:
-    param_exponent_left_initial: 1
-    param_exponent_left_range_start: 0.5
-    param_exponent_left_range_end: 1.5
+    param_exponent_initial: 1
+    param_exponent_range_start: 0.01
+    param_exponent_range_end: 5
 
-    param_exponent_right_initial: 1
-    param_exponent_right_range_start: 0.5
-    param_exponent_right_range_end: 1.5
-
-    param_noise_initial: 10
-    param_noise_range_start: 1
-    param_noise_range_end: 30
+    param_noise_initial: 50
+    param_noise_range_start: 10
+    param_noise_range_end: 100
 
   params_ADO_two_cyclic_power:
     grid_parameters:
-      param_exponent_left:
-        type: linspace
-        start: 0.5
-        end: 1.5
-        num: 10
-      param_exponent_right:
+      param_exponent:
         type: linspace
         start: 0.5
         end: 1.5
