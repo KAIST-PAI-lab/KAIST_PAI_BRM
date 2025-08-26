@@ -262,7 +262,7 @@ def plot_GPAL_compare_uncertainty(fig_size:Tuple[int, int],
 
 
 
-## This function plots the design selection frequencies of 1D GPAL as a histogram.
+## This function plots the design selection frequencies of 1D GPAL as a 2D histogram.
 ## GPAL selects the optimal design value among design candidates in an adaptive manner.
 ## We can observe the distribution of those 'selected' design values (of the design variable),
 ## therefore examine features of the function of our interest.
@@ -280,7 +280,7 @@ def plot_GPAL_compare_uncertainty(fig_size:Tuple[int, int],
 ## y_label: The text label associated with the y-axis (subject responses).
 ## title: The title of the figure.
 ## mode: A string determining the mode of the histogram. Must be either 'sum' or 'average'.
-
+##       Setting it to 'average' will normalize the histogram values.
 
 ## NOTE: The ranges parameter will be automatically set to the folloiwng, if not specified explicitly.
 ##       ranges = (np.min(design_var), np.max(design_var))
@@ -370,9 +370,49 @@ def plot_frequency_histogram_1D(fig_size:Tuple[int, int],
 
 
 
-def plot_frequency_histogram_2D(fig_size:Tuple[int, int], num_data:int, design_vars:npt.NDArray, 
-                                bins:list[int], ranges:Optional[list[list[float]]], 
-                                xlabel:str, ylabel:str, zlabel:str, title:str, mode:str='sum'):
+## This function plots the design selection frequencies of 2D GPAL as a 3D histogram.
+## GPAL selects the optimal design value among design candidates in an adaptive manner.
+## We can observe the distribution of those 'selected' design values (of the design variable),
+## therefore examine features of the function of our interest.
+## As "2D" in the function name implies, this functions plots a 3DD histogram,
+## where the (x,y) coordinate denotes the design values and the z-axis indicates the frequencies.
+
+
+## Parameter Descriptions.
+## fig_size: The size of the figure. Must be a tuple holding integer values.
+## num_data: The number of selected design values (i.e. the optimal design candidates).  
+## design_var: A numpy array holding all selected design (coordinate) values. 
+##             Each row corresponds to a single design. Must contain 2 columns (considering 2D GPAL).
+## bins: A list holding the number of equal-length bins for the x,y axis. 
+##       Each element corresponds to the number of bins for each axis. Must be of length 2.
+## ranges: A list of 2 lists, indicating the total range of the selected design values.
+##         The first list elements specifies the range of x-coordinate values of the selected designs.
+##         The second list element specifies the range of y-coordinate values of the selected designs.
+## x_label: The text label associated with the x-axis (first design variable)
+## y_label: The text label associated with the y-axis (second design variable)
+## z_label: The text label associated with the z-axis.
+## title: The title of the figure.
+## mode: A string determining the mode of the histogram. Must be either 'sum' or 'average'.
+##       Setting it to 'average' will normalize the histogram values.
+
+
+## NOTE: The ranges parameter will be automatically set to the folloiwng, if not specified explicitly.
+##       ranges = [[np.min(design_var[:,0]), np.max(design_var[:,0])],
+##                 [np.min(design_var[:,1]), np.max(design_var[:,1])]]
+
+## Return Value Specifications
+## figure: The whole resulting figure.
+## ax: A plot visualized in the figure.
+def plot_frequency_histogram_2D(fig_size:Tuple[int, int], 
+                                num_data:int, 
+                                design_vars:npt.NDArray, 
+                                bins:list[int], 
+                                ranges:Optional[list[list[float]]], 
+                                xlabel:str, 
+                                ylabel:str, 
+                                zlabel:str, 
+                                title:str, 
+                                mode:str='sum'):
     
     if not isinstance(fig_size, tuple):
         raise TypeError(f"fig_size should be a tuple, got the type of {type(fig_size).__name__}.")
