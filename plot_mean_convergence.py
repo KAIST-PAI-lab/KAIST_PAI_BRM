@@ -65,12 +65,15 @@ def get_convergence_mse(x_data_points, y_data_points):
     num_data_points = len(x_data_points)
 
     gp_mean_function_list = []
-    kernel = RBF(length_scale=2.0) + WhiteKernel(
-        noise_level=0.05, noise_level_bounds=(1e-10, 1e1)
+
+    kernel = C(1.0) * RBF(length_scale=2.0) + WhiteKernel(
+        noise_level=0.05, noise_level_bounds=(1e-2, 1e1)
     )
+
     gp_regressor = GaussianProcessRegressor(
         kernel=kernel, normalize_y=True, n_restarts_optimizer=100
     )
+
     for i in range(1, num_data_points + 1):
         x_data_points_current_trial = x_data_points[:i]
         x_data_points_reshaped_for_gpr = np.array(x_data_points_current_trial).reshape(
@@ -251,3 +254,5 @@ for ax in axes:
 figure.suptitle("Mean Convergence Plot", fontsize=14, fontweight="bold")
 
 plt.show()
+
+# %%
