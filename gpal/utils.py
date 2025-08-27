@@ -315,14 +315,13 @@ def check_WhiteKernel_arguments(arg1:float=1.0, arg2:BoundsType=(1e-5,1e5)):
 
 
     
-def argsConstructor(num_kernels:int, kernel_type_list:list[int|str], kernel_arguments_list:list[list]):
+def argsConstructor(kernel_type_list:list[int|str], kernel_arguments_list:list[list]):
     if not isinstance(kernel_type_list, list):
         raise TypeError(f"kernel_type_list should be a list, got the type of {type(kernel_type_list).__name__}.")
     if not all(isinstance(kt, int|str) for kt in kernel_type_list):
         typ=kernel_type_list[[isinstance(kt, int|str) for kt in kernel_type_list].index(False)]
         raise TypeError(f"kernel_type_list should contain either integer or tring values, got the type of {type(typ).__name__ }.")
-    if len(kernel_type_list)!=num_kernels:
-        raise ValueError(f"kernel_type_list should be of length {num_kernels}, got {len(kernel_type_list)}.")
+    num_kernels=len(kernel_type_list)
     if not isinstance(kernel_arguments_list, list):
         raise TypeError(f"kernel_arguments_list should be a list, got the type of {type(kernel_arguments_list).__name__}.")
     if not all(isinstance(kal, list) for kal in kernel_arguments_list):

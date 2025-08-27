@@ -43,9 +43,9 @@ except FileNotFoundError:
 ## If the users modify the default arguments, those values will directly be reflected in the above variables.
 
 ## Arguments related to the experimental environment
-n_trials = config.get('n_trials')                             # Number of experiment trials for a subject.
+num_trials = config.get('num_trials')                             # Number of experiment trials for a subject.
 seed = config.get('seed')                                     # A random seed value for reproducibility. 
-n_DVs = config.get('n_DVs')                                   # The number of design variables subject to optimization.
+num_DVs = config.get('n_DVs')                                   # The number of design variables subject to optimization.
 
 ## Arguments related to initializing the GPR instance.
 n_kernels = config.get('n_kernels')                           # The number of individual kernels to be combined. Should be a positive integer.
@@ -68,7 +68,7 @@ save_figures_dir = config.get('save_figures_dir')
 
 
 '''
-Defining a Gaussian process regressor (GPR) object.
+Step 0: Defining a Gaussian process regressor (GPR) object.
 '''
 ## argsConstructor() is a function which generates values to create a GPR object.
 ## argsConsturctor() should take 3 values: num_kernels, kernel_type_list, kernel_arguments_list
@@ -85,13 +85,12 @@ Defining a Gaussian process regressor (GPR) object.
 ## NOTE: It is sufficient to write only the values we are putting to argsConsturctor(),
 ##       But for guidance, we've specified both the values that argsConstructor() should take
 ##       and those we've loaded and putting into the function. 
-kernel_type, kernel_args = argsConstructor(num_kernels=n_kernels, 
-                                           kernel_type_list=kernel_types, 
+kernel_type, kernel_args = argsConstructor(kernel_type_list=kernel_types, 
                                            kernel_arguments_list=kernel_arguments)
 
 
 '''
-Initializing a kernel object and a GPR with the kernel.
+Step 0: Initializing a kernel object and a GPR with the kernel.
 '''
 ## For GPAL, we need to create a GPR object.
 ## In this package, GPRInstance() function takes the role.
@@ -122,15 +121,9 @@ kernel, gpr = GPRInstance(kernel_types=kernel_type,
                           random_state=gpr_random_state)
 
 
-
-''' Determining the order of size controlling of trials. '''
-## In our number-line task, there are two types of trials.
-## One is a 'fixed-size' trial, where the size of the presented dots remains a default value.
-## The other is a 'controlled-size' trial, where the size of the dots may vary.
-## size_control_order determines the order of fixed-size trials and controlled-size ones randomly.
-size_control_order = random.sample([True] * (n_trials//2) + [False] * (n_trials//2), n_trials)
-
-''' Initializing a numpy array for recording. '''
+''' 
+Step 1: Initializing a numpy array for recording. 
+'''
 ## The number-line task of our interest is a 1-dimensional task,
 ## where the 'given number' may vary but 'upper bound' stays still.
 ## In other words, we have a single design variable, which is the 'given number'.
@@ -143,53 +136,93 @@ size_control_order = random.sample([True] * (n_trials//2) + [False] * (n_trials/
 ##       This enables us to record design variables and user responses, for arbitrary number of design variables.
 ##       The first n_DVs rows will record value of each design variables for each trial,
 ##       and the last row will record the subject's responses.
-record_array = np.zeros((n_DVs+1, n_trials))    
+record_array = np.zeros((num_DVs+1, num_trials))   
 
-''' Defining the 'upper bound' value. '''
+
+''' 
+Step 1: Defining the 'upper bound' value. 
+'''
 ## 1-dimensional number-line task has a constant 'upper bound' value.
 ## We've set it to 500, and named it 'max_number'
 ## to refer to the upper bound value with the name of 'max_number' in the following codes.
 max_number = 500
 
+
+''' 
+Step 1: Determining the order of trials with variable-sized dots.
+'''
+## In our number-line task, there are two types of trials.
+## One is a 'fixed-sized' trial, where the size of the presented dots remains a default value.
+## The other is a 'variable-sized' trial, where the size of the dots may vary.
+## size_control_order determines the order of fixed-size trials and variable-sized ones randomly.
+dot_size_flags = [True] * (num_trials//2) + [False] * (num_trials//2)
+size_control_order = random.sample(dot_size_flags, num_trials)
+
+
+
+'''
+Step 1: Running the first trial.
+'''
+## This code block is for running the first trial.
+## Since we cannot optimize the 'given_number' in the first trial,
+## we just set it as a random number among (5, 10, 15, ... , 495, 500)
+## pMean, pStd, lml are GPAL-related statistics, which cannot be calculated in the first trial.
+## Therefore we've just initialized them with simple values.
+interval=5
+num_candidates=(500-5)//5+1
+stimulus_list=np.linspace(5, 500, (500-5)//5+1)
+initial_stimulus=np.random.choice(stimulus_list, size=1)
+pMean = 0
+pStd = 1
+lml = 0
+
+# Show the dots and get response from participant
+# If size_control is enabled, adjust the dot size, else use default size
+response = show_and_get_response(initial_stimulus, 
+                                 visuals, 
+                                 max_number=max_number, 
+                                 size_control=size_control_order[0])
+
+'''
+Recording the results for the next trial
+'''
+## The 0-th row records the selected value of the design variable, namely the 'given number' of the number-line task. 
+## The 1-th row records the response of the subject for the given_number.
+record_array[0][0] = initial_stimulus
+record_array[1][0] = response
+
+## Waiting for the user to press the space key, to move on to the next trial
+event.waitKeys(keyList=['space'])  
+
+
 ''' Running experimental trials with GPAL. '''
 ## We will run the following block n_trials times, with trial_idx representing the index of the currently running trial.
-for trial_idx in range(n_trials):
-
-    ## This code block is only executed when the trial_idx is equal to 0
-    ## i.e. only in the first trial.
-    ## Since we cannot optimize the 'given_number' in the first trial,
-    ## we just set it as a random number among (5, 10, 15, ... , 495, 500)
-    ## pMean, pStd, lml are GPAL-related values, which cannot be calculated in the first trial.
-    ## Therefore we've just initialized them with simple values.
-    if trial_idx == 0:
-        given_number = 5 * random.randint(1, 100)
-        pMean = 0
-        pStd = 1
-        lml = 0
+for trial_idx in range(1,num_trials):
 
     ## This code block is executed otherwise (i.e. for the second to the last trial).
     ## gpal_optimize() function actually executes GPAL optimization
     ## and yields an optimal design for the next trial
     ## as well as some GPAL-related statistics.
     ## NOTE: The design variable to be optimized here is the 'given number' of the number-line task.
-    else:
-        mask = lambda X: X <= 500                                            # Masking function to be applied to design candidate values.
-        dv1_spec = [5, 500, 5]                                               # Design variable #1 specification: 
-                                                                             # [start value, end value, interval between each values]
-        dv_spec = [dv1_spec]                                                 # List of all design variable specifications. 
-                                                                             # In this case, there is only one design variable.
-        dvs = record_array[:-1, :trial_idx]                                  # Design variable values recorded so far.
-        est = record_array[-1, :trial_idx]                                   # Subject responses recorded so far.
-        
-        ## Executing the gpal_optimize() function with appropriate input values.
-        result, pMean, pStd, lml = gpal_optimize(gpr=gpr,                                   # A GP regressor object to be fitted.
-                                                 num_DVs=n_DVs,                             # Number of design variables to be optimized
-                                                 fit_data_X=dvs,                            # The design variable data for fitting the GP regressor
-                                                 obs_data_Y=est,                            # The observation (response) data for fitting the GP regressor
-                                                 design_candidates_specification=dv_spec,   # Overall specifications on the design candidate values. 
-                                                 design_masking_function=mask               # A masking function for filtering infeasible design candidate values.
-                                                 )                        
-        given_number = int(result[0].item())                                                # Extracting the optimal 'given number' value for the next trial.
+    
+                                                                            
+    recorded_stimuli = record_array[:-1, :trial_idx]                                  # Design variable values recorded so far.
+    recorded_responses = record_array[-1, :trial_idx]                                   # Subject responses recorded so far.
+    
+    dv1_spec = [5, 500, 5]                                               # Design variable #1 specification:                                                                    # [start value, end value, interval between each values]
+    candidates_spec = [dv1_spec]                                                 # List of all design variable specifications. 
+                                                                         # In this case, there is only one design variable.    
+
+    mask = lambda X: X <= 500 and X%5==0                                           # Masking function to be applied to design candidate values.
+    ## Executing the gpal_optimize() function with appropriate input values.
+    result, pMean, pStd, lml = gpal_optimize(gpr=gpr,                                   # A GP regressor object to be fitted.
+                                                num_DVs=num_DVs,                             # Number of design variables to be optimized
+                                                fit_data_X=recorded_stimuli,                            # The design variable data for fitting the GP regressor
+                                                obs_data_Y=recorded_responses,                            # The observation (response) data for fitting the GP regressor
+                                                design_candidates_specification=candidates_spec,   # Overall specifications on the design candidate values. 
+                                                design_masking_function=mask               # A masking function for filtering infeasible design candidate values.
+                                                )                        
+    given_number = int(result[0].item())                                                # Extracting the optimal 'given number' value for the next trial.
 
 
     # Show the dots and get response from participant
@@ -211,7 +244,7 @@ for trial_idx in range(n_trials):
 Saving experiment results in the .csv format
 '''
 results_df = pd.DataFrame(record_array.T, columns=['given_number', 'response'])
-results_df.to_csv(os.path.join(save_results_dir, f'results_trial_{n_trials}.csv'), index=False)
+results_df.to_csv(os.path.join(save_results_dir, f'results_trial_{num_trials}.csv'), index=False)
 
 ## Closing the psychopy experiment window.
 visuals['win'].close()  
