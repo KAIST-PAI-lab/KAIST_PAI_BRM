@@ -2,18 +2,18 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 import numpy as np
 from typing import Callable
 import numpy.typing as npt
+from typing import Optional
 import inspect
 from gpal.gpr_fit_predict import gpr_fit, gpr_predict, next_design
-import gpal.utils
 
 
 
 def gpal_optimize(gpr:GaussianProcessRegressor, 
                   num_DVs: int, 
-                  fit_data_X:npt.NDArray[np.float64], 
-                  obs_data_Y:npt.NDArray[np.float64], 
-                  design_candidates_specification:list[list], 
-                  design_masking_function:Callable, 
+                  fit_data_X:npt.NDArray[np.floating], 
+                  obs_data_Y:npt.NDArray[np.floating], 
+                  design_candidates:npt.NDArray[np.floating], 
+                  design_masking_function:Optional[Callable] = None, 
                   return_stdev: bool = True, 
                   return_covar:bool = False):
     if not isinstance(gpr, GaussianProcessRegressor):
@@ -24,8 +24,8 @@ def gpal_optimize(gpr:GaussianProcessRegressor,
         raise ValueError(f"num_DVs should be a positive integer, got {num_DVs}.")
     if not isinstance(fit_data_X, np.ndarray):
         raise TypeError(f"fit_data_X should be a numpy array, got the type of {type(fit_data_X).__name__}.")
-    if fit_data_X.dtype!=np.float64:
-        raise TypeError(f"fit_data_X should have a dtype of np.float64.")
+    if fit_data_X.dtype!=np.floating:
+        raise TypeError(f"fit_data_X should have the float dtype..")
     if fit_data_X.ndim!=2:
         raise ValueError(f"fit_data_X should be a 2D array, got {fit_data_X.ndim} dimensions.")
     if fit_data_X.shape[1]!=num_DVs:
@@ -33,46 +33,39 @@ def gpal_optimize(gpr:GaussianProcessRegressor,
     N=fit_data_X.shape[0]
     if not isinstance(obs_data_Y, np.ndarray):
         raise TypeError(f"obs_data_Y should be a numpy array, got the type of {type(obs_data_Y).__name__}.")
-    if obs_data_Y.dtype!=np.float64:
-        raise TypeError(f"obs_data_Y should have a dtype of np.float64.")
+    if obs_data_Y.dtype!=np.floating:
+        raise TypeError(f"obs_data_Y should have the float dtype.")
     if obs_data_Y.ndim!=1:
         raise ValueError(f"obs_data_Y should be a 1D array, got {obs_data_Y.ndim} dimensions.")
     if obs_data_Y.shape[0]!=N:
         raise ValueError(f"obs_data_Y should be of length {N}, got {obs_data_Y.shape[0]}.")
-    if not isinstance(design_candidates_specification, list):
-        raise TypeError(f"design_candidates_specification should be a list.")
-    if not all([isinstance(spec, list) for spec in design_candidates_specification]):
-        raise TypeError(f"design_candidates_specification should contain list elements.")
-    if len(design_candidates_specification)!=num_DVs:
-        raise ValueError(f"design_candidates_specification should have {num_DVs} list elements, got {len(design_candidates_specification)}.")
-    if not all([len(spec)==3 for spec in design_candidates_specification]):
-        raise ValueError(f"The elements of design_candidates_specification should be of length 3.")
-    if not all([isinstance(spec[2], int) for spec in design_candidates_specification]):
-        raise TypeError(f"The 2-th element of each list in design_candidates_specification should be an integer value.")
-    if not callable(design_masking_function):
-        raise TypeError(f"design_masking_function should be a callable function, got the type of {type(design_masking_function).__name__}.")
-    masking_function_params_num=len(inspect.signature(design_masking_function).parameters)
-    if masking_function_params_num != num_DVs:
-        raise ValueError(f"design_masking_function should have {num_DVs} parameters, got {masking_function_params_num} parameters.")
+    if not isinstance(design_candidates, np.ndarray):
+        raise TypeError(f"design_candidates should be a numpy array, got the type of {type(design_candidates).__name__}.")
+    if design_candidates.dtype!=np.floating:
+        raise TypeError(f"design_candidates should have the float dtype.")
+    if design_candidates.ndim!=2:
+        raise ValueError(f"design_candidates should be a 2D array, got {design_candidates.ndim} dimensions.")
+    if design_candidates.shape[1]!=num_DVs:
+        raise ValueError(f"design_candidates should have {num_DVs} columns, got {design_candidates.shape[1]}.")
+    if design_masking_function is not None:
+        if not callable(design_masking_function):
+            raise TypeError(f"design_masking_function should be a callable function, got the type of {type(design_masking_function).__name__}.")
+        masking_function_params_num=len(inspect.signature(design_masking_function).parameters)
+        if masking_function_params_num != num_DVs:
+            raise ValueError(f"design_masking_function should have {num_DVs} parameters, got {masking_function_params_num} parameters.")
     if not isinstance(return_stdev, bool):
         raise TypeError(f"return_stdev should be a bool value, got the type of {type(return_stdev).__name__}.")
     if not isinstance(return_covar, bool):
         raise TypeError(f"return_covar should be a bool value, got the type of {type(return_covar).__name__}.")    
 
 
-    design_candidates=[]
-    for i in range(num_DVs):
-        start_value=design_candidates_specification[i][0]
-        end_value=design_candidates_specification[i][1]
-        interval_value=design_candidates_specification[i][2]
-        candidates_num_per_axis=int((end_value-start_value)/interval_value)+1
-        design_candidates.append(np.linspace(start_value, end_value, candidates_num_per_axis))
+    if design_masking_function is None:
+        predict_candidates_X=design_candidates
+    else:
+        design_candidates_T=design_candidates.T
+        design_mask_binary=design_masking_function(*design_candidates_T) 
+        predict_candidates_X=design_candidates_T[:,design_mask_binary].T
 
-    design_candidates_grid=list(np.meshgrid(*design_candidates, indexing='ij'))
-
-    design_candidate_coordinates=np.stack(design_candidates_grid, -1).T
-    design_mask_binary=design_masking_function(*design_candidate_coordinates)  # Masking the 2D coordinates with a lambda equation
-    predict_candidates_X=design_candidate_coordinates[:,design_mask_binary].T
     log_marginal_likelihood=gpr_fit(gpr=gpr, num_DVs=num_DVs, fit_data_X=fit_data_X, obs_data_Y=obs_data_Y)
     posterior_prediction=gpr_predict(gpr, num_DVs=num_DVs, predict_candidates_X=predict_candidates_X,
                                     return_stdev=return_stdev, return_covar=return_covar)

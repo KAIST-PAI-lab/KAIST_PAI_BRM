@@ -24,7 +24,7 @@ def plot_GPAL_fit(fig_size: Tuple[int, int],
                   predict_candidates_X:NDArray, 
                   trial_idx:int):
     
-    filePath=os.path.join(sbj_dir, f"gpal_results_{sbj_id}.csv")
+    filePath=os.path.join(sbj_dir, f"ado_results_{sbj_id}.csv")
     if os.path.exists(filePath):
         df=pd.read_csv(filePath)
     else:
@@ -34,14 +34,13 @@ def plot_GPAL_fit(fig_size: Tuple[int, int],
     with open(gprPath, 'rb') as f:
         gpr=pickle.load(f)
 
-    df_fixed=df[df['size_control']==False]
-    gns=df_fixed['given_number'].to_numpy()
-    ests=df_fixed['estimation'].to_numpy()
+    gns=df['given_number'].to_numpy()
+    ests=df['estimation'].to_numpy()
     gns=np.expand_dims(gns, -1)
     fit_data_X=gns[:trial_idx+1]
     obs_data_Y=ests[:trial_idx+1]
 
-    new_noise_lower = 5e-3
+    new_noise_lower = 1e-2
     original_kernel=gpr.kernel
     new_noise_kernel=original_kernel.clone_with_theta(original_kernel.theta)
     new_noise_kernel.set_params(k2__noise_level_bounds=(new_noise_lower, 1e5))
@@ -130,14 +129,14 @@ if __name__=="__main__":
     figsize=(16, 8)
     n_trials=20
     pred_cand_X=np.linspace(5, 500, (500-5)//5+1)
-    opt='gpal'
+    opt='ado'
     results_dir=os.path.join('experiment_results', '')
 
     sbj_IDs=[int(dirname[-8:]) for dirname in os.listdir(results_dir)]
     for sbjID in sbj_IDs:
         sbj_dir=os.path.join('experiment_results', f'participant_{sbjID}')
         gpr_dir=os.path.join('models', f"{sbjID}")
-        fig_dir=os.path.join('figures', 'fixed_size', f"{sbjID}")
+        fig_dir=os.path.join('figures', f"{opt}", f"{sbjID}")
 
 
         plot_GPAL_fit(fig_size=figsize, 
@@ -146,4 +145,4 @@ if __name__=="__main__":
                       fig_dir=fig_dir,
                       sbj_id=sbjID, 
                       predict_candidates_X=pred_cand_X, 
-                      trial_idx=9+1)
+                      trial_idx=19+1)

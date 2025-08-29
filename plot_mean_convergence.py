@@ -13,6 +13,9 @@ from sklearn.gaussian_process.kernels import ConstantKernel as C
 from sklearn.gaussian_process.kernels import WhiteKernel
 from sklearn.metrics import mean_squared_error
 from tqdm import tqdm
+import warnings
+warnings.filterwarnings('ignore')
+
 
 # gp regressor
 global x_range
@@ -28,7 +31,7 @@ estimates_gpal = []
 estimates_bd = []
 
 # Iterate the files in the data folder
-data_dir = Path("data")
+data_dir = Path("experiment_results")
 subject_count = 0
 for folder in data_dir.iterdir():
     subject_count += 1
@@ -67,7 +70,7 @@ def get_convergence_mse(x_data_points, y_data_points):
     gp_mean_function_list = []
 
     kernel = C(1.0) * RBF(length_scale=2.0) + WhiteKernel(
-        noise_level=0.05, noise_level_bounds=(1e-2, 1e1)
+        noise_level=0.05, noise_level_bounds=(1e-2, 1e5)
     )
 
     gp_regressor = GaussianProcessRegressor(
@@ -81,9 +84,7 @@ def get_convergence_mse(x_data_points, y_data_points):
         )
 
         y_data_points_current_trial = y_data_points[:i]
-        y_data_points_reshaped_for_gpr = np.array(y_data_points_current_trial).reshape(
-            -1, 1
-        )
+        y_data_points_reshaped_for_gpr = np.array(y_data_points_current_trial)
 
         gp_regressor.fit(x_data_points_reshaped_for_gpr, y_data_points_reshaped_for_gpr)
 
@@ -91,9 +92,10 @@ def get_convergence_mse(x_data_points, y_data_points):
 
         gp_mean_function_list.append(gp_mean_function)
 
+    print(gp_regressor.kernel_)
     mse_values = []
     for i in range(num_data_points):
-        mse = mean_squared_error(gp_mean_function_list[i], gp_mean_function_list[-1])
+        mse = mean_squared_error(gp_mean_function_list[-1], gp_mean_function_list[i])
         mse_values.append(mse)
 
     return mse_values

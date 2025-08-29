@@ -94,9 +94,11 @@ def check_Matern_arguments(arg1:ScalesType=1.0, arg2:BoundsType=(1e-5, 1e5), arg
         raise TypeError(f"arg1 should be either a 1D numpy array or a float value, got the type of {type(arg1).__name__}.")
     elif isinstance(arg1, np.ndarray):
         if arg1.ndim!=1:
-            raise ValueError(f"arg1 should be a 1D numpy array, got {arg1.ndim} dimensions.")
+            raise ValueError(f"arg1 array should be a 1D numpy array, got {arg1.ndim} dimensions.")
         if arg1.dtype!=np.float64:
-            raise TypeError(f"The dtype of arg1 should be np.float64, got the dtype of {arg1.dtype}.")
+            raise TypeError(f"The dtype of arg1 array should be np.float64, got the dtype of {arg1.dtype}.")
+        if np.min(arg1) <=0:
+            raise ValueError(f"arg1 array should only contain positive elements, got {np.min(arg1)}.")
     else:
         if arg1<=0:
             raise ValueError(f"arg1 should be a positive value, got {arg1}.")
@@ -206,6 +208,7 @@ def check_PairwiseKernel_arguments(arg1:float=1.0, arg2:BoundsType=(1e-5, 1e5), 
     
     if not (isinstance(arg3, str) or isinstance(arg3, Callable)):
         raise TypeError(f"arg3 should be a Callable or a string, got the type of {type(arg3).__name__}")
+
     if isinstance(arg3, str):
         if arg3 not in arg3Cands:
             raise ValueError(f"arg3 string value should be one of the following values: {arg3Cands}")
@@ -275,6 +278,8 @@ def check_RBF_arguments(arg1:ScalesType=1.0, arg2:BoundsType=(1e-05, 1e5)):
             raise ValueError(f"arg1 array should be 1D, got {arg1.ndim} dimensions.")
         if arg1.dtype!=np.float64:
             raise TypeError(f"The dtype of arg1 should be np.float64, got {arg1.dtype}.")
+        if np.min(arg1)<=0:
+            raise ValueError(f"arg1 array should only contain positive elements, got {np.min(arg1)}.")
     else:
         if arg1<=0:
             raise ValueError(f"arg1 should be a positive float value, got {arg1}.")
@@ -367,102 +372,30 @@ def argsConstructor(kernel_type_list:list[int|str], kernel_arguments_list:list[l
     
     return kernel_types, kernel_arguments_dict_list
 
-
-
-
-
-def plotEstim1D(figsize:Tuple[int, int], dv1:npt.NDArray, est:npt.NDArray, 
-                xlabel:str, ylabel:str, title:str):
-    if any([not isinstance(fs, int) for fs in figsize]):
-        raise ValueError(f"Elements of figsize should be an int value.")
-    if len(figsize)!=2:
-        raise ValueError(f"figsize should be of length 2.")
-    if not isinstance(dv1, np.ndarray):
-        raise TypeError(f"dv1 should be a numpy array.")
-    if dv1.ndim!=1:
-        raise ValueError(f"dv1 should be a 1D array.")
-    N=dv1.shape[0]
-    if not isinstance(est, np.ndarray):
-        raise TypeError(f"est should be a numpy array.")
-    if est.ndim!=1:
-        raise ValueError(f"est should be a 1D array.")
-    if est.shape[0]!=N:
-        raise ValueError(f"est and dv1 should have equal length, got {est.shape[0]} and {dv1.shape[0]}.")
-    if not isinstance(xlabel, str):
-        raise TypeError(f"xlabel should be a string value.")
-    if not isinstance(ylabel, str):
-        raise TypeError(f"ylabel should be a string value.")
-    if not isinstance(title, str):
-        raise TypeError(f"title should be a string value.")
-    
-    argsorted=np.argsort(dv1)
-    est=est[argsorted]
-    dv1=dv1[argsorted]
+def linspace_with_interval(start_val: float, end_val: float, interval:int):
+    if not isinstance(start_val, float):
+        raise TypeError(f"start_val should be a float value, got the type of {type(start_val).__name__}.")
+    if not isinstance(end_val, float):
+        raise TypeError(f"end_val should be a float value, got the type of {type(end_val).__name__}.")
+    if not isinstance(interval, int):
+        raise TypeError(f"interval should be an integer value, got the type of {type(interval).__name__}.")
+    if interval==0:
+        raise ValueError(f"The specified interval is zero; this will result in an infinite sequence.")
+    if (end_val - start_val)*interval<0:
+        raise ValueError(f"Wrong signs; the sequence starts from {start_val} to {end_val}, with an interval of {interval}.")
         
-    idx=np.arange(N)
-    dv1_x=interp1d(idx, dv1, kind='slinear')
-    est_y=interp1d(idx, est, kind='slinear')
-
-    idx_interp=np.linspace(0, N-1, 10*(N-1))
-    dv1_interp=dv1_x(idx_interp)
-    est_interp=est_y(idx_interp)
-
-    plt.figure(figsize=figsize)
-    plt.plot(dv1_interp, est_interp, color='black')
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.title(title)
-    plt.show()
-
-
-
-def plotEstim2D(figsize:Tuple[int, int], dvs:npt.NDArray, est:npt.NDArray, 
-                xlabel:str, ylabel:str, zlabel:str, title:str):
-    if any([not isinstance(fs, int) for fs in figsize]):
-        raise ValueError(f"Elements of figsize should be an int value.")
-    if len(figsize)!=2:
-        raise ValueError(f"figsize should be of length 2.")
-    if not isinstance(dvs, np.ndarray):
-        raise TypeError(f"dvs should be a numpy array.")
-    if dvs.ndim!=2:
-        raise ValueError(f"dvs should be a 2D array.")
-    if dvs.shape[1]!=2:
-        raise ValueError(f"dvs should have 2 columns, got {dvs.shape[1]} columns.")
-    N=dvs.shape[0]
-    if not isinstance(est, np.ndarray):
-        raise TypeError(f"est should be a numpy array.")
-    if est.ndim!=1:
-        raise ValueError(f"est should be a 1D array.")
-    if est.shape[0]!=N:
-        raise ValueError(f"est and dvs should have equal number of datapoints, got {est.shape[0]} and {N}.")
-    if not isinstance(xlabel, str):
-        raise TypeError(f"xlabel should be a string value.")
-    if not isinstance(ylabel, str):
-        raise TypeError(f"ylabel should be a string value.")
-    if not isinstance(zlabel, str):
-        raise TypeError(f"zlabel should be a string value.")
-    if not isinstance(title, str):
-        raise TypeError(f"title should be a string value.")
     
-        
-    idx=np.arange(dvs.shape[0])
-    dv1_x=interp1d(idx, dvs[:,0], kind='slinear')
-    dv2_y=interp1d(idx, dvs[:,1], kind='slinear')
-    est_z=interp1d(idx, est, kind='slinear')
+    num_elems=np.floor((end_val-start_val)/interval)+1
+    return np.linspace(start_val, end_val, num_elems).reshape(-1,1)
 
-    idx_interp=np.linspace(0, N, N)
-    dv1_interp=dv1_x(idx_interp)
-    dv2_interp=dv2_y(idx_interp)
-    est_interp=est_z(idx_interp)
 
-    fig=plt.figure(figsize=figsize)
-    ax=fig.add_subplot(111, projection='3d')
-    ax.plot(dv1_interp, dv2_interp, est_interp, color='black')
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    ax.set_zlabel(zlabel)
-    ax.set_title(title)
-    plt.show()
+def grid_with_sequences(*sequences):
+    seq_2D= (lambda *args: np.concat(*args, axis=0))(*sequences)
+    coords_per_axis=list(np.meshgrid(*seq_2D, indexing='ij'))
+    coords_grid=np.stack(coords_per_axis, -1)
+    return coords_grid
+
+
 
 
 

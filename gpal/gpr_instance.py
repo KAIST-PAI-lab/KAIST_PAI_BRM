@@ -11,9 +11,12 @@ import numpy.typing as npt
 import re
 
 
-def GPRInstance(kernel_types:list[str], kernel_arguments:list[dict], combine_format:str, 
-                alpha:Union[float, npt.NDArray[np.float64]]=1e-10, 
-                normalize_y:bool=True, n_restarts_optimizer:int=0, 
+def GPRInstance(kernel_types:list[str], 
+                kernel_arguments:list[dict], 
+                combine_format:str, 
+                alpha:Union[float, npt.NDArray[np.floating]]=1e-10, 
+                normalize_y:bool=True, 
+                n_restarts_optimizer:int=0, 
                 random_state:Optional[Union[int, np.random.RandomState]]=None):
     if not isinstance(combine_format, str):
         raise TypeError(f"combine_format should be a string, got {type(format).__name__}.")
@@ -23,8 +26,8 @@ def GPRInstance(kernel_types:list[str], kernel_arguments:list[dict], combine_for
         if alpha<=0:
             raise ValueError(f"alpha should be a positive value, got {alpha}.")
     if isinstance(alpha, np.ndarray):
-        if alpha.dtype!=np.float64:
-            raise TypeError(f"alpha should have a dtype of np.float64.")
+        if alpha.dtype!=np.floating:
+            raise TypeError(f"alpha should have the float dtype.")
         if not np.all(alpha>0):
             raise ValueError(f"alpha should only contain positive elements.")
     if not isinstance(normalize_y, bool):
@@ -50,8 +53,11 @@ def GPRInstance(kernel_types:list[str], kernel_arguments:list[dict], combine_for
 
 ## Adding and multiplying kernel instances are processed after creating all individual kernel instances.
 class KernelBuilder():
-    def __init__(self, num_kernels:int, kernel_types_strs_list:list[str], 
-                 kernel_arguments_dics_list:list[dict], combine_format_str:str):
+    def __init__(self, 
+                 num_kernels:int, 
+                 kernel_types_strs_list:list[str], 
+                 kernel_arguments_dics_list:list[dict], 
+                 combine_format_str:str):
         if not isinstance(num_kernels, int):
             raise TypeError(f"num_kernels should be an int value, got the type of {type(num_kernels).__name__}.")
         if num_kernels<=0:
@@ -125,7 +131,10 @@ class KernelBuilder():
             self.final_kernel=final_compound_kernel
         return self.final_kernel
     
-    def create_individual_kernel(self, kernel_type_str:str, kernel_args_dict:dict):
+    def create_individual_kernel(self, 
+                                 kernel_type_str:str, 
+                                 kernel_args_dict:dict):
+                                 
         def check_params_match(kernel:Kernel, given_args_dict:dict):
             kernel_params=kernel.get_params().keys()
             if not set(given_args_dict.keys()).issubset(set(kernel_params)):
