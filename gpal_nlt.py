@@ -1,13 +1,13 @@
 ## Importing required Python packages
 import numpy as np
 import pandas as pd
-import os, yaml, random, warnings
+import os, random, warnings
 
 ## Importing key functions from our gpal package.
 ## These three functions must be utilized to conduct GPAL properly.
 from gpal.gpal_optimize import gpal_optimize
 from gpal.gpr_instance import GPRInstance
-from gpal.utils import argsConstructor, linspace_with_interval
+from gpal.utils import argsConstructor, sequence_with_interval
 
 ## Importing key functions from the psychopy package.
 ## Our number-line task file is implemented based on the psychopy package.
@@ -26,32 +26,20 @@ logging.console.setLevel(logging.ERROR)
 ##       Users can turn on the fullscreen mode by setting fullscr=True.
 visuals = initialize_psychopy(fullscr=False)
 
-
-## Loading configuration data from config.yaml file.
-## config.yaml: A file specifying default configuration values for the number-line task experiment.
-## NOTE: Users can modify the default configuration by directly accessing config.yaml.
-try:
-    with open('gpal/config.yaml', 'r') as file:
-        config = yaml.safe_load(file)
-    print("Configuration loaded.")
-
-except FileNotFoundError:
-    print("config.yaml file cannot be found.")
-
+'''
 ## Argument Specifications
 ## To be specific, the following codes load default arguments specified in the configuration file 'config.yaml'.
 ## If the users modify the default arguments, those values will directly be reflected in the above variables.
 
 ## Arguments related to the experimental environment
-num_trials = 20                             # Number of experiment trials for a subject.
-seed = None                                     # A random seed value for reproducibility. 
-num_DVs = 1                                 # The number of design variables subject to optimization.
-
+num_trials = 20                             
+seed = None                                 # A random seed value for reproducibility. 
+num_DVs = 1                                 
 ## Arguments related to Gaussian process regressor initialization       
-normalize_y = True                       # A binary mask indicating whether to normalize the target values while fitting.
-n_restarts_optimizer = 100     # The number of restarts of the optimizer to find the optimal kernel parameters.
+normalize_y = True                         # A binary mask indicating whether to normalize the target values while fitting.
+n_restarts_optimizer = 50                 # The number of restarts of the optimizer to find the optimal kernel parameters.
 kernel_types = [0,6,8]                     # A list of indices of kernels to be combined. Refer to 'kernelTypeDic' above.
-kernel_arguments = [[1.0], [1.0], [0.05]]             # A list of list of arguments to be fed to each kernel.
+kernel_arguments = [[1.0], [1.0], [0.01]]             # A list of list of arguments to be fed to each kernel.
 combine_format = "k1*k2+k3"                # A string indicating how the kernels should be combined.
 
 ## Arguments related to optimizing the GPR instance.
@@ -62,6 +50,9 @@ return_cov = False                         # A binary mask indicating whether to
 save_results_dir = 'results'             # A directory to store the task results as .csv files.
 save_models_dir = 'models'               # A directory to store the trained Gaussian process regressor models.
 save_figures_dir = 'figures'
+'''
+
+
 
 
 '''========================================== Step 0 =========================================='''
@@ -84,8 +75,8 @@ Defining a Gaussian process regressor (GPR) object.
 ## NOTE: It is sufficient to write only the values we are putting to argsConsturctor(),
 ##       But for guidance, we've specified both the values that argsConstructor() should take
 ##       and those we've loaded and putting into the function. 
-kernel_type, kernel_args = argsConstructor(kernel_type_list=kernel_types, 
-                                           kernel_arguments_list=kernel_arguments)
+kernel_type, kernel_args = argsConstructor([0,6,8], 
+                                           [[1.0], [1.0], [0.01]])
 
 
 '''
@@ -111,13 +102,12 @@ Initializing a kernel object and a GPR with the kernel.
 ## There are two outputs, which we've named kernel and gpr.
 ## kernel is a Gaussian process kernel object created following our specifications.
 ## gpr is a GPR object associated with that kernel object.
-kernel, gpr = GPRInstance(kernel_types=kernel_type, 
-                          kernel_arguments=kernel_args, 
-                          combine_format=combine_format,
-                          n_restarts_optimizer=n_restarts_optimizer, 
-                          normalize_y=normalize_y)
+kernel, gpr = GPRInstance(kernel_type, kernel_args, 'k1*k2+k3')
 
 ''' =================================== Step 1 ========================================='''
+
+num_trials=20           # Number of experiment trials for a single subject.
+num_DVs=1               # The number of design variables to be optimized.
 
 ''' 
 Initializing a numpy array for recording. 
@@ -129,12 +119,13 @@ Initializing a numpy array for recording.
 ## The first row will record the 'given number' for each trial,
 ## and the second row is for recording the subject's estimation on the 'given number'. 
 ## This record array will be updated after each trial.
-## NOTE: The number of rows of record_array is set to n_DVs+1. 
+## NOTE: The number of columns of record_array is set to n_DVs+1. 
 ##       Here n_DVs is the number of design variables to be optimized.
-##       This enables us to record design variables and user responses, for arbitrary number of design variables.
-##       The first n_DVs rows will record value of each design variables for each trial,
-##       and the last row will record the subject's responses.
-record_array = np.zeros((num_DVs+1, num_trials))   
+##       This enables us to record multiple design variables and user responses, 
+#        in a single data structure, even for arbitrary number of design variables.
+##       The first n_DVs columns will record value of each design variables,
+##       and the last column will record the subject's responses.
+data_record = np.zeros((20, 2))   
 
 
 ''' 
@@ -165,10 +156,10 @@ Running the first trial.
 start_val=5
 end_val=500
 interval=5
-stimulus_list=linspace_with_interval(start_val, end_val, interval)
-initial_stimulus=np.random.choice(stimulus_list, size=1)
-pMean = 0
-pStd = 1
+stimulus_list=sequence_with_interval(start_val, end_val, interval)
+initial_stimulus=np.random.choice(stimulus_list.squeeze())
+gp_mean = 0
+gp_std = 1
 lml = 0
 
 
@@ -177,16 +168,16 @@ lml = 0
 ## Otherwise, the default-sized dots are provided.
 response = show_and_get_response(initial_stimulus, 
                                  visuals, 
-                                 max_number=max_number, 
-                                 size_control=size_control_order[0])
+                                 max_number, 
+                                 size_control_order[0])
 
 '''
 Recording the results for the next trial
 '''
 ## The 0-th row records the selected value of the design variable, namely the 'given number' of the number-line task. 
 ## The 1-th row records the response of the subject for the given_number.
-record_array[0][0] = initial_stimulus
-record_array[1][0] = response
+data_record[0][0] = initial_stimulus
+data_record[0][1] = response
 
 ## Waiting for the user to press the space key, to move on to the next trial
 event.waitKeys(keyList=['space'])  
@@ -202,22 +193,14 @@ for trial_idx in range(1,num_trials):
     ## as well as some GPAL-related statistics.
     ## NOTE: The design variable to be optimized here is the 'given number' of the number-line task.
     
-                                                                            
-    recorded_stimuli = record_array[:-1, :trial_idx]                                  # Design variable values recorded so far.
-    recorded_responses = record_array[-1, :trial_idx]                                   # Subject responses recorded so far.
-    
-    
-    candidate_stimuli=linspace_with_interval(5, 500, 5)                                                                    # In this case, there is only one design variable.    
 
-    mask = lambda X: X <= 500 and X%5==0                                           # Masking function to be applied to design candidate values.
-    
+    data_collected=data_record[:trial_idx]
     
     ## Executing the gpal_optimize() function with appropriate input values.
     result, pMean, pStd, lml = gpal_optimize(gpr,                                   # A GP regressor object to be fitted.
                                              num_DVs,                             # Number of design variables to be optimized
-                                             recorded_stimuli,                            # The design variable data for fitting the GP regressor
-                                             recorded_responses,                            # The observation (response) data for fitting the GP regressor
-                                             candidate_stimuli,   # Overall specifications on the design candidate values.
+                                             data_collected,                            # The design variable data for fitting the GP regressor
+                                             stimulus_list   # Overall specifications on the design candidate values.
                                             )                  
     given_number = int(result[0])                                                # Extracting the optimal 'given number' value for the next trial.
 
@@ -231,8 +214,8 @@ for trial_idx in range(1,num_trials):
     '''
     ## The 0-th row records the selected value of the design variable, namely the 'given number' of the number-line task. 
     ## The 1-th row records the response of the subject for the given_number.
-    record_array[0][trial_idx] = given_number
-    record_array[1][trial_idx] = response
+    data_record[trial_idx, 0] = given_number
+    data_record[trial_idx, 1] = response
 
     ## Waiting for the user to press the space key, to move on to the next trial
     event.waitKeys(keyList=['space'])  
@@ -240,8 +223,12 @@ for trial_idx in range(1,num_trials):
 '''
 Saving experiment results in the .csv format
 '''
-results_df = pd.DataFrame(record_array.T, columns=['given_number', 'response'])
+save_results_dir='results'
+results_df = pd.DataFrame(data_record, columns=['given_number', 'response'])
 results_df.to_csv(os.path.join(save_results_dir, f'results_trial_{num_trials}.csv'), index=False)
 
 ## Closing the psychopy experiment window.
 visuals['win'].close()  
+
+
+save_figures_dir='figures'
