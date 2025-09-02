@@ -185,7 +185,7 @@ event.waitKeys(keyList=['space'])
 
 ''' Running experimental trials with GPAL. '''
 ## We will run the following block n_trials times, with trial_idx representing the index of the currently running trial.
-for trial_idx in range(1,num_trials):
+for trial_idx in range(1, num_trials):
 
     ## This code block is executed otherwise (i.e. for the second to the last trial).
     ## gpal_optimize() function actually executes GPAL optimization
