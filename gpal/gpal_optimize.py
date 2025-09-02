@@ -10,8 +10,7 @@ from gpal.gpr_fit_predict import gpr_fit, gpr_predict, next_design
 
 def gpal_optimize(gpr:GaussianProcessRegressor, 
                   num_DVs: int, 
-                  fit_data_X:npt.NDArray[np.floating], 
-                  obs_data_Y:npt.NDArray[np.floating], 
+                  data_record:npt.NDArray[np.floating],
                   design_candidates:npt.NDArray[np.floating], 
                   design_masking_function:Optional[Callable] = None, 
                   return_stdev: bool = True, 
@@ -22,27 +21,18 @@ def gpal_optimize(gpr:GaussianProcessRegressor,
         raise TypeError(f"num_DVs should be an integer value, got the type of {type(num_DVs).__name__}.")
     if num_DVs<1:
         raise ValueError(f"num_DVs should be a positive integer, got {num_DVs}.")
-    if not isinstance(fit_data_X, np.ndarray):
-        raise TypeError(f"fit_data_X should be a numpy array, got the type of {type(fit_data_X).__name__}.")
-    if fit_data_X.dtype!=np.floating:
-        raise TypeError(f"fit_data_X should have the float dtype..")
-    if fit_data_X.ndim!=2:
-        raise ValueError(f"fit_data_X should be a 2D array, got {fit_data_X.ndim} dimensions.")
-    if fit_data_X.shape[1]!=num_DVs:
-        raise ValueError(f"fit_data_X should have {num_DVs} columns; got {fit_data_X.shape[1]} columns.")
-    N=fit_data_X.shape[0]
-    if not isinstance(obs_data_Y, np.ndarray):
-        raise TypeError(f"obs_data_Y should be a numpy array, got the type of {type(obs_data_Y).__name__}.")
-    if obs_data_Y.dtype!=np.floating:
-        raise TypeError(f"obs_data_Y should have the float dtype.")
-    if obs_data_Y.ndim!=1:
-        raise ValueError(f"obs_data_Y should be a 1D array, got {obs_data_Y.ndim} dimensions.")
-    if obs_data_Y.shape[0]!=N:
-        raise ValueError(f"obs_data_Y should be of length {N}, got {obs_data_Y.shape[0]}.")
+    if not isinstance(data_record, np.ndarray):
+        raise TypeError(f"data_record should be a numpy array, got the type of {type(data_record).__name__}.")
+    if data_record.dtype!=np.floating:
+        raise TypeError(f"data_record should have the float dtype, got the dtype of {data_record.dtype}.")
+    if data_record.ndim!=2:
+        raise ValueError(f"data_record should be a 2D array, got {data_record.ndim} dimensions.")
+    if data_record.shape[1]!=num_DVs+1:
+        raise ValueError(f"data_record should have {num_DVs+1} columns; got {data_record.shape[1]} columns.")
     if not isinstance(design_candidates, np.ndarray):
         raise TypeError(f"design_candidates should be a numpy array, got the type of {type(design_candidates).__name__}.")
     if design_candidates.dtype!=np.floating:
-        raise TypeError(f"design_candidates should have the float dtype.")
+        raise TypeError(f"design_candidates should have the float dtype, got the dtype of {design_candidates.dtype}.")
     if design_candidates.ndim!=2:
         raise ValueError(f"design_candidates should be a 2D array, got {design_candidates.ndim} dimensions.")
     if design_candidates.shape[1]!=num_DVs:
@@ -66,13 +56,15 @@ def gpal_optimize(gpr:GaussianProcessRegressor,
         design_mask_binary=design_masking_function(*design_candidates_T) 
         predict_candidates_X=design_candidates_T[:,design_mask_binary].T
 
-    log_marginal_likelihood=gpr_fit(gpr=gpr, num_DVs=num_DVs, fit_data_X=fit_data_X, obs_data_Y=obs_data_Y)
+    lml=gpr_fit(gpr=gpr, num_DVs=num_DVs, data_record=data_record)
     posterior_prediction=gpr_predict(gpr, num_DVs=num_DVs, predict_candidates_X=predict_candidates_X,
                                     return_stdev=return_stdev, return_covar=return_covar)
-    next_design_coordinate, post_mean, post_stdev=next_design(posterior_prediction=posterior_prediction, num_DVs=num_DVs,
+    result, gp_mean, gp_std=next_design(posterior_prediction=posterior_prediction, num_DVs=num_DVs,
                                                             predict_candidates_X=predict_candidates_X)
 
-    return next_design_coordinate, post_mean, post_stdev, log_marginal_likelihood
+    if num_DVs==1:
+        result=result[0]
+    return result, gp_mean, gp_std, lml
 
 
 

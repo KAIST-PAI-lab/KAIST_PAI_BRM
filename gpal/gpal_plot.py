@@ -155,6 +155,8 @@ def plot_GPAL_compare_uncertainty(fig_size:Tuple[int, int],
                                   post_stdev_previous:npt.NDArray, 
                                   post_mean_target:npt.NDArray, 
                                   post_stdev_target:npt.NDArray,
+                                  xlabel:str,
+                                  ylabel:str,
                                   title:str, 
                                   title_previous:str, 
                                   title_target:str, 
@@ -215,15 +217,19 @@ def plot_GPAL_compare_uncertainty(fig_size:Tuple[int, int],
         raise TypeError(f"sigma_coef should be a float value, got the type of {type(sigma_coef).__name__}")
     if sigma_coef<0:
         raise ValueError(f"sigma_coef should be non-negative, got {sigma_coef}.")
+    if not isinstance(xlabel, str):
+        raise TypeError(f"xlabel should be a string value, got the type of {type(xlabel).__name__}.")
+    if not isinstance(ylabel, str):
+        raise TypeError(f"ylabel should be a string value, got the type of {type(ylabel).__name__}.")
     if not isinstance(title, str):
         raise TypeError(f"title should be a string value, got the type of {type(title).__name__}.")
     if not isinstance(title_previous, str):
-        raise TypeError(f"title_previous should be a string value, got the type of {type(title_left).__name__}.")
+        raise TypeError(f"title_previous should be a string value, got the type of {type(title_previoius).__name__}.")
     if not isinstance(title_target, str):
-        raise TypeError(f"title_target should be a string value, got the type of {type(title_right).__name__}.")
+        raise TypeError(f"title_target should be a string value, got the type of {type(title_target).__name__}.")
     
     ## Creating a figure with two subplots.
-    figure, (ax1, ax2)=plt.subplots(1,2, figsize=fig_size)
+    figure, (ax1, ax2)=plt.subplots(2,1, figsize=fig_size)
     
     ## Left subplot
     ## Plotting the experiment data up to the previous trial.
@@ -235,8 +241,11 @@ def plot_GPAL_compare_uncertainty(fig_size:Tuple[int, int],
                      post_mean_previous+sigma_coef*post_stdev_previous, alpha=0.3, label='Uncertainty')
     ## Plotting a dotted vertical line, at the design candidate associated with maximum posterior standard deviation.
     ax1.axvline(x=fit_data_X[-1], color='green', linestyle='--', linewidth=3)
+    ax1.set_xlabel(xlabel, fontsize=16)
+    ax1.set_ylabel(ylabel, fontsize=16)
     ## Setting the title for the left subplot.
     ax1.set_title(title_previous, fontsize=font_size)
+    
 
     ## Right subplot
     ## Plotting the experiment data up to the target trial.
@@ -250,6 +259,8 @@ def plot_GPAL_compare_uncertainty(fig_size:Tuple[int, int],
     ax2.scatter(fit_data_X[-1], obs_data_Y[-1], c='red')
     ## Plotting a dotted vertical line, at the design candidate associated with maximums posterior standard deviation.
     ax2.axvline(x=max_stdev_design, color='green', linestyle='--', linewidth=3)
+    ax2.set_xlabel(xlabel, fontsize=16)
+    ax2.set_ylabel(ylabel, fontsize=16)
     ## Setting the title for the right subplot.
     ax2.set_title(title_target, fontsize=font_size)
 

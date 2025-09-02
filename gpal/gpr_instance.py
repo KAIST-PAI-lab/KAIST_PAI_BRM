@@ -16,7 +16,7 @@ def GPRInstance(kernel_types:list[str],
                 combine_format:str, 
                 alpha:Union[float, npt.NDArray[np.floating]]=1e-10, 
                 normalize_y:bool=True, 
-                n_restarts_optimizer:int=0, 
+                n_restarts_optimizer:int=50, 
                 random_state:Optional[Union[int, np.random.RandomState]]=None):
     if not isinstance(combine_format, str):
         raise TypeError(f"combine_format should be a string, got {type(format).__name__}.")

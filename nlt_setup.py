@@ -127,7 +127,7 @@ def draw_base_components(visuals):
     visuals['line_leftend'].draw()
     visuals['line_rightend'].draw()
 
-def show_and_get_response(number, visuals, max_number=500, size_control=False):
+def show_and_get_response(number, visuals, max_number, size_control=False):
     """
     Show and get response from the user.
 
@@ -144,6 +144,10 @@ def show_and_get_response(number, visuals, max_number=500, size_control=False):
     marker = visuals['marker']
     img_stim = visuals['img_stim']
 
+    if isinstance(number, float):
+        number=int(number)
+    if isinstance(max_number, float):
+        max_number=int(max_number)
     if size_control:
         dot_size = calculate_dot_size(max_number_size=4, number=number, max_number=max_number)
     else:

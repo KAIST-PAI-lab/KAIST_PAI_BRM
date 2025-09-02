@@ -6,40 +6,36 @@ from typing import Optional
 import numpy.typing as npt
 from gpal.utils import prediction
 
-def gpr_fit(gpr:GaussianProcessRegressor, num_DVs: int, 
-            fit_data_X: npt.NDArray[np.floating], obs_data_Y: npt.NDArray[np.floating]):
+def gpr_fit(gpr:GaussianProcessRegressor, 
+            num_DVs: int, 
+            data_record: npt.NDArray[np.floating]):
     if not isinstance(gpr, GaussianProcessRegressor):
         raise TypeError(f"gpr should be a GaussianProcessRegressor object, got the type of {type(gpr).__name__}.")
     if not isinstance(num_DVs, int):
         raise TypeError(f"num_DVs should be an integer value, got the type of {type(num_DVs).__name__}.")
     if num_DVs<1:
         raise ValueError(f"num_DVs should be a positive integer, got {num_DVs}.")
-    if not isinstance(fit_data_X, np.ndarray):
-        raise TypeError(f"fit_data_X should be a numpy array.")
-    if fit_data_X.dtype!=np.floating:
-        raise TypeError(f"fit_data_X should have the float dtype.")
-    if fit_data_X.ndim!=2:
-        raise ValueError(f"fit_data_X should be a 2D numpy array, got {fit_data_X.ndim} dimensions.")
-    N=fit_data_X.shape[0]
-    if fit_data_X.shape[1]!=num_DVs:
-         raise ValueError(f"fit_data_X should be a 2D numpy array with {num_DVs} columns, got {fit_data_X.shape[1]} columns.")
-    if not isinstance(obs_data_Y, np.ndarray):
-        raise TypeError(f"obs_data_Y should be a numpy array.")
-    if obs_data_Y.dtype!=np.floating:
-        raise TypeError(f"obs_data_Y should have the float dtype.")
-    if obs_data_Y.ndim!=1:
-        raise ValueError(f"obs_data_Y should be a 1D numpy array, got {obs_data_Y.ndim} dimensions.")
-    if obs_data_Y.shape[0]!=N:
-        raise ValueError(f"obs_data_Y should be of length {N}, got {obs_data_Y.shape[0]}")    
-
+    if not isinstance(data_record, np.ndarray):
+        raise TypeError(f"data_record should be a numpy array.")
+    if data_record.dtype!=np.floating:
+        raise TypeError(f"data_record should have the float dtype, got the dtype of {data_record.dtype}.")
+    if data_record.ndim!=2:
+        raise ValueError(f"data_record should be a 2D numpy array, got {data_record.ndim} dimensions.")
+    if data_record.shape[1]!=num_DVs+1:
+         raise ValueError(f"data_record should be a 2D numpy array with {num_DVs+1} columns, got {data_record.shape[1]} columns.")
+    
+    fit_data_X=data_record[:, :-1]
+    obs_data_Y=data_record[:, -1]
     gpr.fit(X=fit_data_X, y=obs_data_Y)
     log_marginal_likelihood=gpr.log_marginal_likelihood()
     return log_marginal_likelihood
 
 
-def gpr_predict(gpr:GaussianProcessRegressor, num_DVs:int, 
+def gpr_predict(gpr:GaussianProcessRegressor, 
+                num_DVs:int, 
                 predict_candidates_X: npt.NDArray[np.floating], 
-                return_stdev:bool=False, return_covar:bool=False):
+                return_stdev:bool=False, 
+                return_covar:bool=False):
     if not isinstance(gpr, GaussianProcessRegressor):
         raise TypeError(f"gpr should be a GaussianProcessRegressor object, got the type of {type(gpr).__name__}.")
     if not isinstance(num_DVs, int):

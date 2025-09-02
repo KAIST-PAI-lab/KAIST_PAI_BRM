@@ -1,11 +1,10 @@
 from sklearn.gaussian_process.kernels import Kernel
+from sklearn.gaussian_process import GaussianProcessRegressor
 import numpy as np
 import numpy.typing as npt
-import matplotlib.pyplot as plt
 from functools import wraps
-from typing import NamedTuple, Optional, Union, Tuple, Callable
-from scipy.interpolate import interp1d
-from mpl_toolkits.mplot3d import Axes3D
+from typing import NamedTuple, Optional, Union, Tuple, Callable, List
+from scipy.stats import norm
 
 
 BoundsType=Union[Tuple[float, float], str]
@@ -320,7 +319,7 @@ def check_WhiteKernel_arguments(arg1:float=1.0, arg2:BoundsType=(1e-5,1e5)):
 
 
     
-def argsConstructor(kernel_type_list:list[int|str], kernel_arguments_list:list[list]):
+def argsConstructor(kernel_type_list:List, kernel_arguments_list:List[List]):
     if not isinstance(kernel_type_list, list):
         raise TypeError(f"kernel_type_list should be a list, got the type of {type(kernel_type_list).__name__}.")
     if not all(isinstance(kt, int|str) for kt in kernel_type_list):
@@ -372,28 +371,38 @@ def argsConstructor(kernel_type_list:list[int|str], kernel_arguments_list:list[l
     
     return kernel_types, kernel_arguments_dict_list
 
-def linspace_with_interval(start_val: float, end_val: float, interval:int):
-    if not isinstance(start_val, float):
-        raise TypeError(f"start_val should be a float value, got the type of {type(start_val).__name__}.")
-    if not isinstance(end_val, float):
-        raise TypeError(f"end_val should be a float value, got the type of {type(end_val).__name__}.")
-    if not isinstance(interval, int):
-        raise TypeError(f"interval should be an integer value, got the type of {type(interval).__name__}.")
+def sequence_with_interval(start_val: int|float, end_val: int|float, interval:int|float):
+    if not isinstance(start_val, float|int):
+        raise TypeError(f"start_val should be a float or an integer value, got the type of {type(start_val).__name__}.")
+    if not isinstance(end_val, float|int):
+        raise TypeError(f"end_val should be a float or an integer value, got the type of {type(end_val).__name__}.")
+    if not isinstance(interval, int|float):
+        raise TypeError(f"interval should be a float or an integer value, got the type of {type(interval).__name__}.")
     if interval==0:
         raise ValueError(f"The specified interval is zero; this will result in an infinite sequence.")
     if (end_val - start_val)*interval<0:
         raise ValueError(f"Wrong signs; the sequence starts from {start_val} to {end_val}, with an interval of {interval}.")
-        
-    
-    num_elems=np.floor((end_val-start_val)/interval)+1
-    return np.linspace(start_val, end_val, num_elems).reshape(-1,1)
 
+    #if isinstance(start_val, int):    
+    #    start_val=float(start_val)
+    #if isinstance(end_val, int):
+    #    end_val=float(end_val)
+    #num_elems=np.floor((end_val-start_val)/interval+1)
+    #return np.linspace(start_val, end_val, num=num_elems).reshape(-1,1)
+    return np.arange(start_val, end_val, interval, dtype=float).reshape(-1, 1)
 
 def grid_with_sequences(*sequences):
     seq_2D= (lambda *args: np.concat(*args, axis=0))(*sequences)
     coords_per_axis=list(np.meshgrid(*seq_2D, indexing='ij'))
     coords_grid=np.stack(coords_per_axis, -1)
     return coords_grid
+
+
+
+
+        
+
+
 
 
 
