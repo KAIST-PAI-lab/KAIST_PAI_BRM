@@ -1,6 +1,5 @@
 #%%
 
-## Importing required Python packages
 import os
 import random
 import warnings
@@ -14,14 +13,10 @@ import pandas as pd
 import yaml
 from matplotlib.ticker import FormatStrFormatter, MultipleLocator
 from mpl_toolkits.mplot3d.axes3d import Axes3D
-## Importing key functions from the psychopy package.
-## Our number-line task file is implemented based on the psychopy package.
 from psychopy import event, logging
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.metrics import mean_squared_error
 
-## Importing key functions from our gpal package.
-## These three functions must be utilized to conduct GPAL properly.
 from gpal.gpal_optimize import gpal_optimize
 from gpal.gpr_instance import GPRInstance
 from gpal.utils import argsConstructor, sequence_with_interval
@@ -563,4 +558,5 @@ def plot_convergence_and_frequency(gp_regressor: GaussianProcessRegressor, dataf
     axes[2].set_ylabel("Selection Frequency")
     axes[2].set_title("Figure C: Design Selection Histogram")
     
+    return figure, axes
     return figure, axes
