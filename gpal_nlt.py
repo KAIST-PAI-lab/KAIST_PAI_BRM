@@ -1,22 +1,26 @@
+# %%
+
 ## Importing required Python packages
+import os
+import random
+import warnings
+
 import numpy as np
 import pandas as pd
-import os, random, warnings
+## Importing key functions from the psychopy package.
+## Our number-line task file is implemented based on the psychopy package.
+from psychopy import event, logging
 
 ## Importing key functions from our gpal package.
 ## These three functions must be utilized to conduct GPAL properly.
 from gpal.gpal_optimize import gpal_optimize
 from gpal.gpr_instance import GPRInstance
 from gpal.utils import argsConstructor, sequence_with_interval
-
-## Importing key functions from the psychopy package.
-## Our number-line task file is implemented based on the psychopy package.
-from psychopy import event, logging
 ## Importing functions for settings of number-line task, from nlt_setup.py file.
-from nlt_setup import show_and_get_response, initialize_psychopy
+from nlt_setup import initialize_psychopy, show_and_get_response
 
 ## Managing default settings to ignore warning messages raised by psychopy.
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
 logging.console.setLevel(logging.ERROR)
 
 
@@ -26,7 +30,7 @@ logging.console.setLevel(logging.ERROR)
 ##       Users can turn on the fullscreen mode by setting fullscr=True.
 visuals = initialize_psychopy(fullscr=False)
 
-'''
+"""
 ## Argument Specifications
 ## To be specific, the following codes load default arguments specified in the configuration file 'config.yaml'.
 ## If the users modify the default arguments, those values will directly be reflected in the above variables.
@@ -50,16 +54,14 @@ return_cov = False                         # A binary mask indicating whether to
 save_results_dir = 'results'             # A directory to store the task results as .csv files.
 save_models_dir = 'models'               # A directory to store the trained Gaussian process regressor models.
 save_figures_dir = 'figures'
-'''
+"""
 
 
+"""========================================== Step 0 =========================================="""
 
-
-'''========================================== Step 0 =========================================='''
-
-'''
+"""
 Defining a Gaussian process regressor (GPR) object.
-'''
+"""
 ## argsConstructor() is a function which generates values to create a GPR object.
 ## argsConsturctor() should take 3 values: num_kernels, kernel_type_list, kernel_arguments_list
 ## num_kernels indicate the number of kernel objects to be combined,
@@ -74,14 +76,13 @@ Defining a Gaussian process regressor (GPR) object.
 ## We will soon exploit these outputs when generating a GPR object.
 ## NOTE: It is sufficient to write only the values we are putting to argsConsturctor(),
 ##       But for guidance, we've specified both the values that argsConstructor() should take
-##       and those we've loaded and putting into the function. 
-kernel_type, kernel_args = argsConstructor([0,6,8], 
-                                           [[1.0], [1.0], [0.01]])
+##       and those we've loaded and putting into the function.
+kernel_type, kernel_args = argsConstructor([0, 6, 8], [[1.0], [1.0], [0.01]])
 
 
-'''
+"""
 Initializing a kernel object and a GPR with the kernel.
-'''
+"""
 ## For GPAL, we need to create a GPR object.
 ## In this package, GPRInstance() function takes the role.
 
@@ -96,41 +97,41 @@ Initializing a kernel object and a GPR with the kernel.
 ## For example, if we have 3 kernels and we want to multiply the first two ones and add the last one,
 ## we can just feed "k1*k2+k3" as combine_format.
 
-## For alpha, n_restarts_optimizer, normalize_y, and random_state, 
+## For alpha, n_restarts_optimizer, normalize_y, and random_state,
 ## it is recommended to put the default values, loaded from config.yaml.
 
 ## There are two outputs, which we've named kernel and gpr.
 ## kernel is a Gaussian process kernel object created following our specifications.
 ## gpr is a GPR object associated with that kernel object.
-kernel, gpr = GPRInstance(kernel_type, kernel_args, 'k1*k2+k3')
+kernel, gpr = GPRInstance(kernel_type, kernel_args, "k1*k2+k3")
 
-''' =================================== Step 1 ========================================='''
+""" =================================== Step 1 ========================================="""
 
-num_trials=20           # Number of experiment trials for a single subject.
-num_DVs=1               # The number of design variables to be optimized.
+num_trials = 20  # Number of experiment trials for a single subject.
+num_DVs = 1  # The number of design variables to be optimized.
 
-''' 
+""" 
 Initializing a numpy array for recording. 
-'''
+"""
 ## The number-line task of our interest is a 1-dimensional task,
 ## where the 'given number' may vary but 'upper bound' stays still.
 ## In other words, we have a single design variable, which is the 'given number'.
 ## We will create a numpy array for recording the experiment results.
 ## The first row will record the 'given number' for each trial,
-## and the second row is for recording the subject's estimation on the 'given number'. 
+## and the second row is for recording the subject's estimation on the 'given number'.
 ## This record array will be updated after each trial.
-## NOTE: The number of columns of record_array is set to n_DVs+1. 
+## NOTE: The number of columns of record_array is set to n_DVs+1.
 ##       Here n_DVs is the number of design variables to be optimized.
-##       This enables us to record multiple design variables and user responses, 
+##       This enables us to record multiple design variables and user responses,
 #        in a single data structure, even for arbitrary number of design variables.
 ##       The first n_DVs columns will record value of each design variables,
 ##       and the last column will record the subject's responses.
-data_record = np.zeros((20, 2))   
+data_record = np.zeros((20, 2))
 
 
-''' 
+""" 
 Defining the number-line task-specific values. 
-'''
+"""
 ## 1-dimensional number-line task has a constant 'upper bound' value.
 ## We've set it to 500, and named it 'max_number'
 ## to refer to the upper bound value with the name of 'max_number' in the following codes.
@@ -141,23 +142,23 @@ max_number = 500
 ## One is a 'fixed-sized' trial, where the size of the presented dots remains a default value.
 ## The other is a 'variable-sized' trial, where the size of the dots may vary.
 ## size_control_order determines the order of fixed-size trials and variable-sized ones randomly.
-dot_size_flags = [True] * (num_trials//2) + [False] * (num_trials//2)
+dot_size_flags = [True] * (num_trials // 2) + [False] * (num_trials // 2)
 size_control_order = random.sample(dot_size_flags, num_trials)
 
 
-'''
+"""
 Running the first trial.
-'''
+"""
 ## This code block is for running the first trial.
 ## Since we cannot optimize the design variable (i.e. 'given number') in the first trial,
 ## we just set it as a random number among (5, 10, 15, ... , 495, 500)
 ## pMean, pStd, lml are GPAL-related statistics, which cannot be calculated in the first trial.
 ## Therefore we've just initialized them with simple values.
-start_val=5
-end_val=500
-interval=5
-stimulus_list=sequence_with_interval(start_val, end_val, interval)
-initial_stimulus=np.random.choice(stimulus_list.squeeze())
+start_val = 5
+end_val = 500
+interval = 5
+stimulus_list = sequence_with_interval(start_val, end_val, interval)
+initial_stimulus = np.random.choice(stimulus_list.squeeze())
 gp_mean = 0
 gp_std = 1
 lml = 0
@@ -166,24 +167,23 @@ lml = 0
 ## Show the dots and get response from participant
 ## If size_control is True, the function internally adjusts the size of the dots.
 ## Otherwise, the default-sized dots are provided.
-response = show_and_get_response(initial_stimulus, 
-                                 visuals, 
-                                 max_number, 
-                                 size_control_order[0])
+response = show_and_get_response(
+    initial_stimulus, visuals, max_number, size_control_order[0]
+)
 
-'''
+"""
 Recording the results for the next trial
-'''
-## The 0-th row records the selected value of the design variable, namely the 'given number' of the number-line task. 
+"""
+## The 0-th row records the selected value of the design variable, namely the 'given number' of the number-line task.
 ## The 1-th row records the response of the subject for the given_number.
 data_record[0][0] = initial_stimulus
 data_record[0][1] = response
 
 ## Waiting for the user to press the space key, to move on to the next trial
-event.waitKeys(keyList=['space'])  
+event.waitKeys(keyList=["space"])
 
 
-''' Running experimental trials with GPAL. '''
+""" Running experimental trials with GPAL. """
 ## We will run the following block n_trials times, with trial_idx representing the index of the currently running trial.
 for trial_idx in range(1, num_trials):
 
@@ -192,43 +192,66 @@ for trial_idx in range(1, num_trials):
     ## and yields an optimal design for the next trial
     ## as well as some GPAL-related statistics.
     ## NOTE: The design variable to be optimized here is the 'given number' of the number-line task.
-    
 
-    data_collected=data_record[:trial_idx]
-    
+    data_collected = data_record[:trial_idx]
+
     ## Executing the gpal_optimize() function with appropriate input values.
-    result, pMean, pStd, lml = gpal_optimize(gpr,                                   # A GP regressor object to be fitted.
-                                             num_DVs,                             # Number of design variables to be optimized
-                                             data_collected,                            # The design variable data for fitting the GP regressor
-                                             stimulus_list   # Overall specifications on the design candidate values.
-                                            )                  
-    given_number = int(result[0])                                                # Extracting the optimal 'given number' value for the next trial.
-
+    result, pMean, pStd, lml = gpal_optimize(
+        gpr,  # A GP regressor object to be fitted.
+        num_DVs,  # Number of design variables to be optimized
+        data_collected,  # The design variable data for fitting the GP regressor
+        stimulus_list,  # Overall specifications on the design candidate values.
+    )
+    given_number = int(
+        result
+    )  # Extracting the optimal 'given number' value for the next trial.
 
     # Show the dots and get response from participant
     # If size_control is enabled, adjust the dot size, else use default size
-    response = show_and_get_response(given_number, visuals, max_number=max_number, size_control=size_control_order[trial_idx])
+    response = show_and_get_response(
+        given_number,
+        visuals,
+        max_number=max_number,
+        size_control=size_control_order[trial_idx],
+    )
 
-    '''
+    """
     Recording the results for the next trial
-    '''
-    ## The 0-th row records the selected value of the design variable, namely the 'given number' of the number-line task. 
+    """
+    ## The 0-th row records the selected value of the design variable, namely the 'given number' of the number-line task.
     ## The 1-th row records the response of the subject for the given_number.
     data_record[trial_idx, 0] = given_number
     data_record[trial_idx, 1] = response
 
     ## Waiting for the user to press the space key, to move on to the next trial
-    event.waitKeys(keyList=['space'])  
+    event.waitKeys(keyList=["space"])
 
-'''
+"""
 Saving experiment results in the .csv format
-'''
-save_results_dir='results'
-results_df = pd.DataFrame(data_record, columns=['given_number', 'response'])
-results_df.to_csv(os.path.join(save_results_dir, f'results_trial_{num_trials}.csv'), index=False)
+"""
 
 ## Closing the psychopy experiment window.
-visuals['win'].close()  
+visuals["win"].close()
 
+save_results_dir = "results"
+results_df = pd.DataFrame(data_record, columns=["given_number", "response"])
+result_path = os.path.join(save_results_dir, f"results_trial_{num_trials}.csv")
+results_df.to_csv(path_or_buf=result_path, index=False)
 
-save_figures_dir='figures'
+save_figures_dir = "figures"
+
+# Import result analysis functions
+from gpal.gpal_plot_new import (plot_convergence, plot_GP,
+                                plot_selection_frequency)
+
+# Read the saved result file and run the analysis
+results_df = pd.read_csv(result_path)
+
+figure_GP, axes_GP, fitted_gpr = plot_GP(gp_regressor=gpr, dataframe=results_df)
+figure_GP.show()
+
+figure_conv, axes_conv, mse_values = plot_convergence(gp_regressor=gpr, dataframe=results_df)
+figure_conv.show()
+
+figure_freq, ax_freq = plot_selection_frequency(dataframe=results_df)
+figure_freq.show()
