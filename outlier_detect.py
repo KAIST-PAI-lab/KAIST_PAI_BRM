@@ -82,7 +82,7 @@ if __name__=="__main__":
     sbj_IDs=[int(dirname[-8:]) for dirname in os.listdir(results_dir)]
     opt='gpal'
     predict_candidate_X=np.arange(5, 501, 1).reshape(-1, 1)
-    alpha=0.1
+    alpha_list=[0.005]
     num_trials=20
     init_index=5
     for sID in tqdm(sbj_IDs):
@@ -90,7 +90,7 @@ if __name__=="__main__":
         gpr_dir=os.path.join('models', f"{sID}")
         fig_dir=os.path.join('figures', f"{sID}")
 
-        filePath=os.path.join(sbj_dir, f"gpal_results_{sID}.csv")
+        filePath=os.path.join(sbj_dir, f"{opt}_results_{sID}.csv")
         if os.path.exists(filePath):
             df=pd.read_csv(filePath)
         else:
@@ -106,24 +106,27 @@ if __name__=="__main__":
         fit_data_X=gns
         obs_data_Y=ests
 
-        result=outlier_detect(gpr=gpr, 
-                              fit_data_X=fit_data_X, 
-                              obs_data_Y=obs_data_Y,
-                              predict_candidate_X=predict_candidate_X,
-                              num_trials=num_trials,
-                              init_index=init_index,
-                              alpha=alpha)
-        
         base_dir=os.path.join('outlier_related', f"{sID}")
         if not os.path.exists(base_dir):
             os.mkdir(base_dir)
-        
-        inliers_df=pd.DataFrame(np.concat((result['in_data_X'], result['in_data_Y']), axis=1),
-                                columns=["Feature Stimulus", "Responses"])
-        inliers_df.to_csv(os.path.join(base_dir, f'lnliers.csv'), index=False)
 
-        figsize=(12,8)
-        figure, ax=plot_GPAL_uncertainty(fig_size=figsize,
+        for alpha in alpha_list:
+            result=outlier_detect(gpr=gpr, 
+                                fit_data_X=fit_data_X, 
+                                obs_data_Y=obs_data_Y,
+                                predict_candidate_X=predict_candidate_X,
+                                num_trials=num_trials,
+                                init_index=init_index,
+                                alpha=alpha)
+        
+        
+        
+            inliers_df=pd.DataFrame(np.concat((result['in_data_X'], result['in_data_Y']), axis=1),
+                                    columns=["Feature Stimulus", "Responses"])
+            inliers_df.to_csv(os.path.join(base_dir, f'Inliers_{opt}_{alpha}.csv'), index=False)
+
+            figsize=(12,8)
+            figure, ax=plot_GPAL_uncertainty(fig_size=figsize,
                                          fit_data_X=result['in_data_X'],
                                          obs_data_Y=result['in_data_Y'].squeeze(),
                                          predict_candidates_X=predict_candidate_X,
@@ -132,4 +135,4 @@ if __name__=="__main__":
                                          x_label='Feature Stimulus',
                                          y_label='Responses',
                                          title="Uncertainty - Inlineres only")
-        figure.savefig(os.path.join(base_dir, f"uncertainty_inliners.png"))
+            figure.savefig(os.path.join(base_dir, f"uncertainty_inliners_{opt}_{alpha}.png"))
