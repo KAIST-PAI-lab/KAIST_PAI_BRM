@@ -102,9 +102,9 @@ for slope_value in tqdm(slope_value_cases, desc="Slope values"):
                 current_param_combination = [slope_value, intercept_value, log_mix_value, noise_value]
                 params_override = {param_name: param_value for param_name, param_value in zip(model_param_names, current_param_combination)}
                 print(f"Current True Parameters: {params_override}")
-                true_param_combinations.append(true_param_combinations)
+                true_param_combinations.append(current_param_combination)
 
-                first_given_number = 5*random.randint(0,500)
+                first_given_number = 5*random.randint(1,101)
                 given_number = None
                 # generate data (GPAL)
                 for i in range(N_TRIALS):
