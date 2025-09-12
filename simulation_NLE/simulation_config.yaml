@@ -13,15 +13,15 @@ parameter_lists:
 
   # mixed log linear model
   params_mixed_log_linear:
-    param_slope: 1
-    param_intercept: 0
-    param_log_mix: 0.5
-    param_noise: 12.5 # only available in the likelihood function
-
+    param_slope: 0.89 # 실제 데이터 범위에서 약간 넉넉한 정도 0.6~0.9, a,b, lambda 분포 그려보기
+    param_intercept: 11.13
+    param_log_mix: 0.22
+    param_noise: 60 # only available in the likelihood function, 11개, 0.1 interval로...
+  # given number  기준으로 플마 10%
   params_optimize_mixed_log_linear:
-    param_slope_initial: 1
+    param_slope_initial: 0.5
     param_slope_range_start: 0
-    param_slope_range_end: 2
+    param_slope_range_end: 1
 
     param_intercept_initial: 0
     param_intercept_range_start: 0
@@ -64,7 +64,7 @@ parameter_lists:
   # one cyclic power model
   params_one_cyclic_power:
     param_exponent: 0.5
-    param_noise: 12.5 # only in available in the likelihood function
+    param_noise: 84.7 # only in available in the likelihood function
 
   params_optimize_one_cyclic_power:
     param_exponent_initial: 1
@@ -91,7 +91,7 @@ parameter_lists:
   # two cyclic power model
   params_two_cyclic_power:
     param_exponent: 1
-    param_noise: 10 # only available in the likelihood function
+    param_noise: 84.7 # only available in the likelihood function
 
   params_optimize_two_cyclic_power:
     param_exponent_initial: 1

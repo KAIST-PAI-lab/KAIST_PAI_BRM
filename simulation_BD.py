@@ -78,14 +78,16 @@ x_range = np.linspace(0, N_MAX, N_MAX)
 colors = ["red", "orange", "blue", "purple"]
 mse_list = []
 
-given_number_grids = np.linspace(5, 480, 20)
+given_number_grids = np.linspace(5, 500, 20)
 given_number_list = np.copy(given_number_grids)
 random.shuffle(given_number_list)
 
 for i in range(N_TRIALS - len(given_number_grids)):
     given_number_list = np.append(given_number_list, random.choice(given_number_grids))
 
+print(given_number_list)
 
+#%%
 given_number_list_done = []
 
 kernel = RBF(length_scale=2.0) + WhiteKernel(
