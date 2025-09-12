@@ -88,23 +88,28 @@ for name in model_param_names:
         )
     )
 
+total_iter_number = len(slope_value_cases) * len(intercept_value_cases) * len(log_mix_value_cases) * len(noise_value_cases)
 
 true_param_combinations = []
+
 GPAL_param_combinations = []
+GPAL_param_combinations_across_trials = [[] for _ in range(N_TRIALS)]
 BR_param_combinations = []
+BR_param_combinations_across_trials = [[] for _ in range(N_TRIALS)]
+
 for slope_value in tqdm(slope_value_cases, desc="Slope values"):
     for intercept_value in tqdm(intercept_value_cases, desc="Intercept values"):
         for log_mix_value in tqdm(log_mix_value_cases, desc="Log-mix values"):
             for noise_value in tqdm(noise_value_cases, desc="Noise values"):
-                participant_GPAL= HypotheticalParticipant(true_model_name)
-                participant_BR= HypotheticalParticipant(true_model_name)
+                participant_GPAL = HypotheticalParticipant(true_model_name)
+                participant_BR = HypotheticalParticipant(true_model_name)
 
                 current_param_combination = [slope_value, intercept_value, log_mix_value, noise_value]
                 params_override = {param_name: param_value for param_name, param_value in zip(model_param_names, current_param_combination)}
                 print(f"Current True Parameters: {params_override}")
                 true_param_combinations.append(current_param_combination)
 
-                first_given_number = 5*random.randint(1,101)
+                first_given_number = 5*random.randint(1, 101)
                 given_number = None
                 # generate data (GPAL)
                 for i in range(N_TRIALS):
@@ -132,6 +137,16 @@ for slope_value in tqdm(slope_value_cases, desc="Slope values"):
 
                     given_number = next_design
 
+                    optimized_model_GPAL_each_trial = minimize(
+                    fun=true_model_likelihood_scipy_minimize,
+                    x0=x0,
+                    bounds=bounds,
+                    args=(np.array(participant_GPAL.stimulus_record), np.array(participant_GPAL.response_record)),
+                    method="L-BFGS-B",
+                    )
+
+                    GPAL_param_combinations_across_trials[i].append(optimized_model_GPAL_each_trial["x"])
+
 
                 # generate data (BR)
                 balanced_given_number = np.linspace(5, 500, N_TRIALS)
@@ -140,6 +155,16 @@ for slope_value in tqdm(slope_value_cases, desc="Slope values"):
                 for i in range(N_TRIALS):
                     print(f"BR Trial #{i+1}")
                     participant_BR.respond(stimulus=balanced_given_number[i], params_override=params_override)
+
+                    optimized_model_BR_each_trial = minimize(
+                    fun=true_model_likelihood_scipy_minimize,
+                    x0=x0,
+                    bounds=bounds,
+                    args=(np.array(participant_BR.stimulus_record), np.array(participant_BR.response_record)),
+                    method="L-BFGS-B",
+                    )
+
+                    BR_param_combinations_across_trials[i].append(optimized_model_BR_each_trial["x"])
 
                 # fit MLLM for GPAL generated data points & get the optimized parameters
 
@@ -163,8 +188,6 @@ for slope_value in tqdm(slope_value_cases, desc="Slope values"):
                 GPAL_param_combination = optimized_model_GPAL["x"]
                 GPAL_param_combinations.append(GPAL_param_combination)
                 
-
-                
                 BR_param_combination = optimized_model_BR["x"]
                 BR_param_combinations.append(BR_param_combination)
 
@@ -173,6 +196,34 @@ for slope_value in tqdm(slope_value_cases, desc="Slope values"):
                 print(f"BR current collected parameter combinations: {BR_param_combinations}")
 
 #%%
+# param combination 0
+# trial 1 = [n=33]
+# true param = [
+# x = 20 trial
+# 해당 trial에서 얻은 parameter array 33 짜리
+
+
+all_log_mix_values = [_[2] for _ in true_param_combinations]
+
+pearson_values_across_trials_GPAL = []
+
+for i in range(N_TRIALS):
+    array1 = all_log_mix_values
+    array2 = [_[2] for _ in GPAL_param_combinations_across_trials[i]]
+    pearson_value = np.corrcoef(array1, array2)[0, 1]
+    pearson_values_across_trials_GPAL.append(pearson_value)
+    
+pearson_values_across_trials_BR = []
+
+for i in range(N_TRIALS):
+    array1 = all_log_mix_values
+    array2 = [_[2] for _ in BR_param_combinations_across_trials[i]]
+    pearson_value = np.corrcoef(array1, array2)[0, 1]
+    pearson_values_across_trials_BR.append(pearson_value)
+
+print(pearson_values_across_trials_GPAL)
+print(pearson_values_across_trials_BR)
+
 # param robustness pearson values
 # true_param_combinations 
 # GPAL_param_combinations 
@@ -198,9 +249,6 @@ true_to_BR_pearson_values = []
 
 #%%
 true_to_GPAL_slope_pearson_value = np.corrcoef(true_param_slope_values, GPAL_param_slope_values)[0,1]
-print(true_to_GPAL_slope_pearson_value)
-
-#%%
 true_to_GPAL_intercept_pearson_value = np.corrcoef(true_param_intercept_values, GPAL_param_intercept_values)[0,1] 
 true_to_GPAL_log_mix_pearson_value = np.corrcoef(true_param_log_mix_values, GPAL_param_log_mix_values)[0,1] 
 true_to_GPAL_noise_pearson_value = np.corrcoef(true_param_noise_values, GPAL_param_noise_values)[0,1] 
