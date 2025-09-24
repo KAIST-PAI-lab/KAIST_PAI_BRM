@@ -161,6 +161,9 @@ def one_cyclic_power_likelihood_scipy_minimize(
 
 
 def one_cyclic_power_generate_response(param_exponent, param_noise, given_number):
+    if type(param_exponent) == list:
+        param_exponent = param_exponent[0]
+
     pred = N_MAX * (
         given_number**param_exponent
         / (given_number**param_exponent + (N_MAX - given_number) ** param_exponent)
@@ -258,6 +261,9 @@ def two_cyclic_power_likelihood_scipy_minimize(
 
 
 def two_cyclic_power_generate_response(param_exponent, param_noise, given_number):
+    if type(param_exponent) == list:
+        param_exponent = param_exponent[0]
+    
     pred = two_cyclic_power(param_exponent, given_number)
     response = np.random.normal(loc=pred, scale=param_noise)
     return np.clip(response, 0, N_MAX)
