@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 import yaml
 from scipy.optimize import minimize
+import os
+import pickle
 
 import simulation_NLE.psychometric_functions as psy_funcs
 
@@ -49,7 +51,7 @@ class HypotheticalParticipant:
         else:
             params = self.true_model_params
             
-        print(f"current params:", params)
+        print(f"current stimulus & params: {stimulus} & {params}")
 
         response = self.generate_response(**params, given_number=stimulus)
 
@@ -348,8 +350,10 @@ def fit_model(data_points_x, data_points_y, fitting_model_name, manual_title = N
     optimized_parameters = optimized_model["x"]
 
     x_range = np.arange(0, int(N_MAX) + 1)
-
-    y_pred = true_model(*optimized_parameters[:-1], x_range)
+    if fitting_model_name == "two_cyclic_power":
+        y_pred = [true_model(*optimized_parameters[:-1], x_value) for x_value in x_range]
+    else:
+        y_pred = true_model(*optimized_parameters[:-1], x_range)
     
     fig, ax = plt.subplots(figsize=(6, 4))
 
@@ -516,3 +520,50 @@ def get_results_data_points(data_dir=Path("data")):
             }
 
     return dict(results) 
+
+
+def save_pickle_checkpoint(checkpoint_path: str, checkpoint_file_name: str, checkpoint_object: dict):
+    os.makedirs(checkpoint_path, exist_ok=True)
+
+    file_path = os.path.join(checkpoint_path, checkpoint_file_name)
+
+    with open(file_path, "wb") as f:
+        pickle.dump(checkpoint_object, f)
+
+    return file_path
+
+
+def compute_correlation_confidence_interval(array_x, array_y, alpha=0.05):
+    x = np.asarray(array_x)
+    y = np.asarray(array_y)
+    n = len(x)
+
+    r = np.corrcoef(x, y)[0, 1]
+    z = np.arctanh(r)
+    se = 1 / np.sqrt(n - 3)
+
+    z_crit = 1.96 if alpha == 0.05 else -np.sqrt(2) * np.erfcinv(alpha)
+
+    z_low, z_high = z - z_crit * se, z + z_crit * se
+
+    ci_low, ci_high = np.tanh([z_low, z_high])
+
+    return r, ci_low, ci_high
+
+
+def plot_data_points_and_function(data_points_x, data_points_y, function_name, parameters, manual_title=""):
+    fig, ax = plt.subplots(1, 1, figsize=(6,4))
+
+    ax.scatter(data_points_x, data_points_y)
+    function = getattr(psy_funcs, function_name)
+    x_range = np.arange(0, int(N_MAX) + 1)
+    if function_name == "two_cyclic_power":
+        y_pred = [function(*[float(parameters)], x_value) for x_value in x_range]
+    else:
+        y_pred = function(*[float(parameters)], x_range)
+
+    ax.plot(x_range, y_pred, linewidth=2, label = "Function")
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_title(f"{manual_title}")
+    return fig, ax
