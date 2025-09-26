@@ -383,15 +383,23 @@ def sequence_with_interval(start_val: int|float, end_val: int|float, interval:in
     if (end_val - start_val)*interval<0:
         raise ValueError(f"Wrong signs; the sequence starts from {start_val} to {end_val}, with an interval of {interval}.")
 
-    #if isinstance(start_val, int):    
-    #    start_val=float(start_val)
-    #if isinstance(end_val, int):
-    #    end_val=float(end_val)
-    #num_elems=np.floor((end_val-start_val)/interval+1)
-    #return np.linspace(start_val, end_val, num=num_elems).reshape(-1,1)
-    return np.arange(start_val, end_val, interval, dtype=float).reshape(-1, 1)
+    if isinstance(start_val, int):
+        start_val=float(start_val)
+    if isinstance(end_val, int):
+        end_val=float(end_val)
+    if isinstance(interval, int):
+        interval=float(interval)
+    return np.linspace(start_val, end_val, np.floor((end_val-start_val)/interval).astype(int)+1)
 
 def grid_with_sequences(*sequences):
+    for seq in sequences:
+        if not isinstance(seq, np.ndarray):
+            raise TypeError(f"Every argument should be a numpy array, got the type of {type(seq).__name__}.")
+        if seq.ndim!=2:
+            raise ValueError(f"Every argument should be a 2D array, got the dimension of {seq.ndim}.")
+        if seq.shape[1]!=1:
+            raise ValueError(f"Every argument should have a single column, got {seq.shape[1]} columns.")
+            
     seq_2D= (lambda *args: np.concat(*args, axis=0))(*sequences)
     coords_per_axis=list(np.meshgrid(*seq_2D, indexing='ij'))
     coords_grid=np.stack(coords_per_axis, -1)

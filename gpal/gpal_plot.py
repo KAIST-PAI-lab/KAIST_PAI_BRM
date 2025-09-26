@@ -1,364 +1,375 @@
 #%%
 from typing import Optional, Tuple
 
-import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
-import numpy.typing as npt
+import pandas as pd
 from matplotlib.ticker import MultipleLocator
-from mpl_toolkits.mplot3d.axes3d import Axes3D
+from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.metrics import mean_squared_error
 
-## This function plots a 2-dimensional uncertainty plot.
-## This 'uncertainty plot' visualizes the experimental data as a scatterplot.
-## Then it visualizes the posterior mean calculated for each design candidate,
-## and the uncertainty range determined by the associated posterior standard deviations.
 
-## Parameter Descriptions
-## fig_size: The size of the figure. Must be a tuple holding integer values.
-## fit_data_X: The numpy array recording the provided design variables for each given experimental trial. 
-## obs_data_Y: The numpy array recording the subject responses for each given experimental trial.
-## predict_candidates_X: The numpy array containing the design candidates for GPAL optimization.
-## post_mean: The numpy array holding the posterior mean values for each design candidate (in predict_candidate_X).
-## post_stdev: The numpy array holding the posterior standard deviation value for each design candidate (in predict_candidate_X).
-## x_label: The text label associated with the x-axis (design candidates).
-## y_label: The text label associated with the y-axis (subject responses).
-## title: The title of the figure.
-## sigma_coef: The coefficient determining the uncertainty range. Must be a positive float value.
 
-## NOTE: The uncertainty range is defined as the following:
-##       [post_mean - sigma_coef * post_stdev, post_mean + sigma_coef * post_stdev]
-## NOTE: The post_mean and post_stdev must be the posterior statistics 
-##       obtained by gpr.predict(predict_candidates_X) after gpr.fit(fit_data_X, obs_data_Y).
-##       In other words, post_mean and post_stdev must hold posterior statistics
-##       for GPAL optimization of the upcoming (next) trial.
-##       Then GPAL will select the design candidate with the largest posterior standard deviation,
-##       which is equivalent to the largest uncertainty range.
-
-## Return Value Descriptions
-## figure: The resulting figure.
-## ax: A plot visualized in the resulting figure.
-
-def plot_GPAL_uncertainty(fig_size:Tuple[int, int], 
-                          fit_data_X:npt.NDArray, 
-                          obs_data_Y:npt.NDArray, 
-                          predict_candidates_X:npt.NDArray, 
-                          post_mean:npt.NDArray, 
-                          post_stdev:npt.NDArray, 
-                          x_label:str, 
-                          y_label:str, 
-                          title:str, 
-                          sigma_coef:float=1.0):
-    if not isinstance(fig_size, Tuple):
-        raise TypeError(f"fig_size should be a tuple, got the type of {type(fig_size).__name__}.")
-    if any([not isinstance(fs, int) for fs in fig_size]):
-        raise ValueError(f"fig_size should contain integer elements.")
-    if len(fig_size)!=2:
-        raise ValueError(f"figsize should be of length 2, got {len(fig_size)}.")
-    if not isinstance(fit_data_X, np.ndarray):
-        raise TypeError(f"fit_data_X should be a numpy array, got the type of {type(fit_data_X).__name__}.")
-    if fit_data_X.ndim!=2:
-        raise ValueError(f"fit_data_X should be a 2D array, got {fit_data_X.ndim} dimensions.")
-    if not isinstance(predict_candidates_X, np.ndarray):
-        raise TypeError(f"predict_candidates_X should be a numpy array, got the type of {type(predict_candidates_X).__name__}.")
-    if predict_candidates_X.ndim!=1:
-        raise ValueError(f"predict_candidates_X should be a 1D array, got {predict_candidates_X.ndim} dimensions.")
-    if not isinstance(obs_data_Y, np.ndarray):
-        raise TypeError(f"obs_data_Y should be a numpy array, got the type of {type(obs_data_Y).__name__}.")
-    if obs_data_Y.ndim!=1:
-        raise ValueError(f"obs_data_Y should be a 1D array, got {obs_data_Y.ndim} dimensions.")
-    if not isinstance(post_mean, np.ndarray):
-        raise TypeError(f"post_mean should be a numpy array, got the type of {type(post_mean).__name__}.")
-    if post_mean.ndim!=1:
-        raise ValueError(f"post_mean should be a 1D array, got {post_mean.ndim} dimensions.")
-    if not isinstance(post_stdev, np.ndarray):
-        raise TypeError(f"post_stdev should be a numpy array, got {type(post_stdev).__name__}.")
-    if post_stdev.ndim!=1:
-        raise ValueError(f"post_stdev should be a 1D array, got {post_stdev.ndim} dimensions.")
-    if fit_data_X.shape[0]!=obs_data_Y.shape[0]:
-        raise ValueError(f"fit_data_X and obs_data_Y should have equal number of data, got {fit_data_X.shape[0]} and {obs_data_Y.shape[0]}.")
-    if predict_candidates_X.shape[0]!=post_mean.shape[0]:
-        raise ValueError(f"predict_candidates_X and post_mean should have equal number of data, got {predict_candidates_X.shape[0]} and {post_mean.shape[0]}.")
-    if predict_candidates_X.shape[0]!=post_stdev.shape[0]:
-        raise ValueError(f"predict_candidates_X and post_stdev should have equal number of data, got {predict_candidates_X.shape[0]} and {post_stdev.shape[0]}.")
-    if not isinstance(sigma_coef, float):
-        raise TypeError(f"sigma_coef should be a float value, got the type of {type(sigma_coef).__name__}.")
-    if sigma_coef<0:
-        raise ValueError(f"sigma_coef should be non-negative, got {sigma_coef}.")
-    if not isinstance(x_label, str):
-        raise TypeError(f"xlabel should be a string value, got the type of {type(x_label).__name__}.")
-    if not isinstance(y_label, str):
-        raise TypeError(f"ylabel should be a string value, got the type of {type(y_label).__name__}.")
-    if not isinstance(title, str):
-        raise TypeError(f"title should be a string value, got the type of {type(title).__name__}.")
+def plot_GP(gp_regressor: GaussianProcessRegressor, 
+            dataframe: pd.DataFrame, 
+            x_range: Optional[Tuple[float, float]] = None, 
+            y_range: Optional[Tuple[float, float]] = None,
+            x_num: int = 100, 
+            column_names_specified:Optional[list[str]] = None, 
+            trial_numbers_specified:Optional[list[int]] = None,
+            figure_size: Tuple[int, int] = (6,4),
+            sigma_coefficient: float = 1.0,
+            font_size_title = 20,
+            font_size_axis_label = 15,
+            x_label_name = "Stimulus",
+            y_label_name = "Response"):
     
-    figure=plt.figure(figsize=fig_size)
-    ax=figure.add_subplot(1,1,1)
-    
-    ## Plots the experiment data as a scatterplot.
-    ax.scatter(fit_data_X.ravel(), obs_data_Y, c='black', label='Data')
-    ## Plots the posterior mean values associated with every design candidate.
-    ax.plot(predict_candidates_X, post_mean, label="Prediction", linewidth=2.5, color='black')
-    ## Plots the uncertainty range with semi-transparent color.
-    ax.fill_between(predict_candidates_X, post_mean-sigma_coef*post_stdev, 
-                     post_mean+sigma_coef*post_stdev, alpha=0.3, label='Uncertainty')
-    
-    ## Setting the title and labels.
-    ax.set_title(title, fontsize=24)
-    ax.set_xlabel(x_label, fontsize=24)
-    ax.set_ylabel(y_label, fontsize=24)
-    
-    return figure, ax
+    if not isinstance(gp_regressor, GaussianProcessRegressor):
+        raise TypeError(f"gp_regressor should be a GaussianProcessRegressor object, got the type of {type(gp_regressor).__name__}.")
+    if not isinstance(dataframe, pd.DataFrame):                 
+        raise TypeError(f"dataframe should be a Pandas DataFrame, got the type of {type(dataframe).__name__}.")
+    if x_range is not None:
+        if not isinstance(x_range, Tuple):
+            raise TypeError(f"x_range should be a Tuple, got the type of {type(x_range).__name__}.")
+        else:
+            if len(x_range)!=2:
+                raise ValueError(f"x_range should have 2 elements, got {len(x_range)} elements.")
+        if not all([isinstance(r, float) for r in x_range]):
+            raise TypeError(f"x_range should only contain float values.")
+        if x_range[0] >= x_range[1]:
+            raise ValueError(f"x_range[1] should be larger than x_range[0].")
+    if y_range is not None:
+        if not isinstance(y_range, Tuple):
+            raise TypeError(f"y_range should be a Tuple, got the type of {type(y_range).__name__}.")
+        else:
+            if len(y_range)!=2:
+                raise ValueError(f"y_range should have 2 elements, got {len(y_range)} elements.")
+        if not all([isinstance(r, float) for r in y_range]):
+            raise TypeError(f"y_range should only contain float values.")
+        if y_range[0] >= y_range[1]:
+            raise ValueError(f"y_range[1] should be larger than y_range[0].")
+    if not isinstance(x_num, int):
+        raise TypeError(f"x_num should be an integer value, got the type of {type(x_num).__name__}.")    
+    if not x_num>0:
+        raise ValueError(f"x_num should be a positive integer, got {x_num}.")
+    if column_names_specified is not None:
+        if not isinstance(column_names_specified, list):
+            raise TypeError(f"column_names_specified should be a list, got the type of {type(column_names_specified).__name__}.")
+        if not all([isinstance(cn, str) for cn in column_names_specified]):
+            raise TypeError(f"column_names_specified should only contain string elements.")
+        if len(column_names_specified)<2 or len(column_names_specified)>3:
+            raise ValueError(f"column_names_specified should be of length 2 or 3, got the length of {len(column_names_specified)}.")
+    if trial_numbers_specified is not None:
+        if not isinstance(trial_numbers_specified, list):
+            raise TypeError(f"trial_numbers_specified should be a list, got the type of {type(trial_numbers_specified).__name__}.")
+        if len(trial_numbers_specified)<1:
+            raise ValueError(f"trial_numbers_specified should not be an empty list.")
+        if not all([isinstance(tn, int) for tn in trial_numbers_specified]):
+            raise TypeError(f"trial_numbers_specified should only contain string elements.") 
+        if not all([tn <= dataframe.shape[0] for tn in trial_numbers_specified]):
+            raise ValueError(f"trial_numbers_specified should not contain values larger than {dataframe.shape[0]}.")
+    if not isinstance(figure_size, Tuple):
+        raise TypeError(f"figure_size should be a Tuple, got the type of {type(figure_size).__name__}.")
+    if len(figure_size)!=2:
+        raise ValueError(f"figure_size should have 2 elements, got {len(figure_size)} elements.")
+    if not all([isinstance(fs, int) for fs in figure_size]):
+        raise TypeError(f"figure_size should only contain int values.")
+    if not isinstance(sigma_coefficient, float):
+        raise TypeError(f"sigma_coefficient should be a float value, got the type of {type(sigma_coefficient).__name__}.")       
+
+
+    # Get the datapoints from the dataframe
+    if column_names_specified is not None:
+        #print(f"The columns included in dataframe: {list(dataframe.columns)}.")
+        n_names_specified = len(column_names_specified)
+
+        if n_names_specified == 2:
+            x_column_name, y_column_name = column_names_specified
+
+            # If the specified column namaes can't be searched on the dataframe, raise ValueError
+            missing_columns = [col for col in column_names_specified if col not in dataframe.columns]
+            if len(missing_columns)>0:
+                raise ValueError(f"The following columns cannot be found in the dataframe: {missing_columns}.")
+            
+            x_data_points = dataframe[x_column_name].to_numpy()
+            y_data_points = dataframe[y_column_name].to_numpy()
+
+        ## 3D Uncertainty plot - not implemented yet
+        elif n_names_specified == 3:
+            x_column_name, y_column_name, z_column_name = column_names_specified
+
+            # If the specified column namaes can't be searched on the dataframe, raise ValueError
+            missing_columns = [col for col in column_names_specified if col not in dataframe.columns]
+            if len(missing_columns)>0:
+                raise ValueError(f"The following columns cannot be found in the dataframe: {missing_columns}.")
+            
+            x_data_points = dataframe[x_column_name].to_numpy()
+            y_data_points = dataframe[y_column_name].to_numpy()
+            z_data_points = dataframe[z_column_name].to_numpy()
+
+    else:
+        x_data_points = dataframe.iloc[:, 0].to_numpy()
+        y_data_points = dataframe.iloc[:, 1].to_numpy()
+
+    # generate subplots as many as the trial numbers
+    if trial_numbers_specified is None:
+        number_subplots = 1
+    else:
+        number_subplots = len(trial_numbers_specified)
+        figure_size = (6, 5*number_subplots)
+
+    figure, axes = plt.subplots(number_subplots, 1, figsize=figure_size)
+
+    if trial_numbers_specified is not None:
+        if len(trial_numbers_specified) == 1:
+            trial_number = trial_numbers_specified[0]
+            x_data_points_specified = x_data_points[:trial_number]
+
+            y_data_points_specified = y_data_points[:trial_number]
+
+            x_data_points_reshaped = x_data_points_specified.reshape(-1, 1)
+
+            gp_regressor.fit(x_data_points_reshaped, y_data_points_specified)
+            
+            if x_range is not None:
+                x_values_predict = np.linspace(x_range[0], 
+                                    x_range[1], 
+                                    x_num).reshape(-1, 1)
+            else:
+                x_values_predict = np.linspace(min(x_data_points_specified), 
+                                    max(x_data_points_specified), 
+                                    x_num).reshape(-1, 1)
+
+            post_mean, post_stdev = gp_regressor.predict(x_values_predict, return_std=True)
+
+            ## Plots the experiment data as a scatterplot.
+            axes.scatter(x_data_points_specified, y_data_points_specified, c='black', label='Data Points')
+
+            ## Plots the posterior mean values associated with every design candidate.
+            axes.plot(x_values_predict, post_mean, label="Prediction", linewidth=2.5, color='black')
+
+            max_stdev_design = x_values_predict[np.argmax(post_stdev)].item()
+        
+            axes.axvline(x=max_stdev_design, color='green', linestyle='--', linewidth=3)
+            
+            ## Plots the uncertainty range with semi-transparent color.
+            axes.fill_between(x_values_predict.ravel(), post_mean-sigma_coefficient*post_stdev, 
+                            post_mean+sigma_coefficient*post_stdev, alpha=0.3, label='Uncertainty')
+            
+            axes.annotate(
+                f"{int(max_stdev_design)}",
+                xy=(max_stdev_design, 0),             
+                xycoords=("data", "axes fraction"),
+                xytext=(0, -17.5),                   
+                textcoords="offset points",
+                ha="center", va="top",
+                fontsize=12, color="green",
+                fontweight="bold"
+            )
+
+            axes.set_title(f"Trial #{trial_number}", fontsize = font_size_title)
+            axes.set_xlabel(f"{x_label_name}", fontsize = font_size_axis_label) 
+            axes.set_ylabel(f"{y_label_name}", fontsize = font_size_axis_label) 
+
+            if y_range:
+                axes.set_ylim(y_range[0], y_range[1])
+
+            axes.legend()
+        
+        
+        elif len(trial_numbers_specified) >= 2:
+            for i in range(number_subplots):
+                # datapoints
+                trial_number = trial_numbers_specified[i]
+
+                x_data_points_specified = x_data_points[:trial_number]
+                y_data_points_specified = y_data_points[:trial_number]
+
+                x_data_points_reshaped = x_data_points_specified.reshape(-1, 1)
+                gp_regressor.fit(x_data_points_reshaped, y_data_points_specified)
+
+                if x_range is not None:                    
+                    x_values_predict = np.linspace(x_range[0], 
+                                        x_range[1], 
+                                        x_num).reshape(-1, 1)
+                else:
+                    x_values_predict = np.linspace(min(x_data_points_specified), 
+                                        max(x_data_points_specified), 
+                                        x_num).reshape(-1, 1)
+
+                    
+                post_mean, post_stdev = gp_regressor.predict(x_values_predict, return_std=True)
+
+                axes[i].scatter(x_data_points_specified, y_data_points_specified, c='black', label='Data Points')
+
+                axes[i].plot(x_values_predict.ravel(), post_mean, label="Prediction", linewidth=2.5, color='black')
+                
+                axes[i].fill_between(x_values_predict.ravel(), post_mean-sigma_coefficient*post_stdev, 
+                                post_mean+sigma_coefficient*post_stdev, alpha=0.3, label='Uncertainty')
+
+                max_stdev_design = x_values_predict[np.argmax(post_stdev)].item()
+
+
+                axes[i].axvline(x=max_stdev_design, color='green', linestyle='--', linewidth=3)
+                axes[i].annotate(
+                    f"{int(max_stdev_design)}",
+                    xy=(max_stdev_design, 0),             
+                    xycoords=("data", "axes fraction"),
+                    xytext=(0, -17.5),                   
+                    textcoords="offset points",
+                    ha="center", va="top",
+                    fontsize=12, color="green",
+                    fontweight="bold"    
+                )
+                
+                axes[i].set_title(f"Trial #{trial_number}", fontsize = font_size_title)
+                axes[i].set_xlabel(f"{x_label_name}", fontsize = font_size_axis_label) 
+                axes[i].set_ylabel(f"{y_label_name}", fontsize = font_size_axis_label) 
+
+                axes[i].legend()
+                
+                if y_range:
+                    axes[i].set_ylim(y_range[0], y_range[1])
+
+            
+    else:
+        x_data_points_specified = x_data_points
+        x_data_points_reshaped = x_data_points_specified.reshape(-1, 1)
+        gp_regressor.fit(x_data_points_reshaped, y_data_points)
+        
+        if x_range is not None:
+            x_values_predict = np.linspace(x_range[0], 
+                                x_range[1], 
+                                x_num).reshape(-1, 1)
+
+        else:
+            x_values_predict = np.linspace(min(x_data_points), 
+                                max(x_data_points), 
+                                x_num).reshape(-1, 1)
+
+        post_mean, post_stdev = gp_regressor.predict(x_values_predict, return_std=True)
+
+        ## Plots the experiment data as a scatterplot.
+        axes.scatter(x_data_points, y_data_points, c='black', label='Data Points')
+
+        ## Plots the posterior mean values associated with every design candidate.
+        axes.plot(x_values_predict.ravel(), post_mean, label="Prediction", linewidth=2.5, color='black')
+        
+        ## Plots the uncertainty range with semi-transparent color.
+        axes.fill_between(x_values_predict.ravel(), post_mean-sigma_coefficient*post_stdev, 
+                        post_mean+sigma_coefficient*post_stdev, alpha=0.3, label='Uncertainty')
+
+        axes.set_xlabel(f"{x_label_name}", fontsize = font_size_axis_label) 
+        axes.set_ylabel(f"{y_label_name}", fontsize = font_size_axis_label) 
+
+        axes.legend()
+
+        if y_range:
+            axes.set_ylim(y_range[0], y_range[1])
+
+    figure.tight_layout()
+    return figure, axes
 
 
 
-
-## This function plots the uncertainty plot at two consecutive trials.
-## Since GPAL optimizes the experiment design adaptively, 
-## we can visualize how the uncertainty plot changes after a single iteration of GPAL.
-## This figure visualizes the uncertainty plot at a certain 'target' trial (on the right subplot) 
-## and at the 'previous' trial (on the left subplot).
-## The uncertainty is calculated based on the GPAL optimization conducted up to the (target/previous) trial.
-## We can directly observe how the uncertainty interval shrinks at the GPAL-selected design point.
-## Moreover, a dotted vertical line indicates the design candidate value
-## whose associated posterior standard deviation is the largest.
-## We can see the design coordinate of the new experiment design (a red dot in the target trial)
-## exactly corresponds to the position of the vertical line in the previous trial.
-
-## Parameter descriptions
-## fig_size: The size of the figure. Must be a tuple holding integer values.
-## font_size: The font size of the text in the figure. Must be positive.
-## fit_data_X: The numpy array recording the provided design variables, up to the target trial
-## obs_data_Y: The numpy array recording the subject responses, up to the target trial
-## predict_candidates_X: The numpy array containing the design candidates for GPAL optimization.
-## post_mean_previous: The numpy array holding the posterior mean value for each design candidate, up to the previous trial
-## post_stdev_previous: The numpy array holding the posterior standard deviation value for each design candidate, up to the previous trial.
-## post_mean_target: The numpy array holding the posterior mean values, up to the target trial.
-## post_stdev_target: The numpy array holding the posterior standard deviation values, up to the target trial.
-## title: The title of the whole figure.
-## title_previous: The title of the left figure (GPAL up to the previous trial)
-## title_target: The title of the right figure (GPAL up to the target trial)
-## max_stdev_design: The design coordinate with maximum posterior standard deviation, in the previous trial.
-## sigma_coef: The coefficient determining the uncertainty range. Must be a positive float value.
-
-## Return Value Specifications
-## figure: The whole resulting figure.
-## ax1: A plot visualized in the left subplot of the figure.
-## ax2: A plot visualized in the right subplot of the figure.
-
-def plot_GPAL_compare_uncertainty(fig_size:Tuple[int, int], 
-                                  font_size:int, 
-                                  fit_data_X:npt.NDArray, 
-                                  obs_data_Y:npt.NDArray,  
-                                  predict_candidates_X:npt.NDArray, 
-                                  post_mean_previous:npt.NDArray, 
-                                  post_stdev_previous:npt.NDArray, 
-                                  post_mean_target:npt.NDArray, 
-                                  post_stdev_target:npt.NDArray,
-                                  xlabel:str,
-                                  ylabel:str,
-                                  title:str, 
-                                  title_previous:str, 
-                                  title_target:str, 
-                                  max_stdev_design:float, 
-                                  sigma_coef:float=1.0):
-    
-    if not isinstance(fig_size, tuple):
-        raise TypeError(f"fig_size should be a tuple, got the type of {type(fig_size).__name__}")
-    if any([not isinstance(fs, int) for fs in fig_size]):
-        raise ValueError(f"fig_size should contain integer elements.")
-    if len(fig_size)!=2:
-        raise ValueError(f"fig_size should be of length 2, got {len(fig_size)}.")
-    if not isinstance(font_size, int):
-        raise TypeError(f"font_size should be an integer value, got the type of {type(font_size).__name__}.")
-    if font_size<=0:
-        raise ValueError(f"font_size should be a positive value, got {font_size}.")
-    if not isinstance(fit_data_X, np.ndarray):
-        raise TypeError(f"fit_data_X should be a numpy array, got the type of {type(fit_data_X).__name__}.")
-    if fit_data_X.ndim!=2:
-        raise ValueError(f"fit_data_X should be a 2D array, got {fit_data_X.ndim} dimensions.")
-    if not isinstance(predict_candidates_X, np.ndarray):
-        raise TypeError(f"predict_candidates_X should be a numpy array, got the type of {type(predict_candidates_X).__name__}.")
-    if predict_candidates_X.ndim!=1:
-        raise ValueError(f"predict_candidates_X should be a 1D array, got {predict_candidates_X.ndim} dimensions.")
-    if not isinstance(obs_data_Y, np.ndarray):
-        raise TypeError(f"obs_data_Y should be a numpy array, got the type of {type(obs_data_Y).__name__}.")
-    if obs_data_Y.ndim!=1:
-        raise ValueError(f"obs_data_Y should be a 1D array, got {obs_data_Y.ndim} dimensions.")
-    if not isinstance(post_mean_previous, np.ndarray):
-        raise TypeError(f"post_mean_previous should be a numpy array, got the type of {type(post_mean_previous).__name__}.")
-    if post_mean_previous.ndim!=1:
-        raise ValueError(f"post_mean_previous should be a 1D array, got {post_mean_previous.ndim} dimensions.")
-    if not isinstance(post_stdev_previous, np.ndarray):
-        raise TypeError(f"post_stdev_previous should be a numpy array, got the type of {type(post_stdev_previous).__name__}.")
-    if post_stdev_previous.ndim!=1:
-        raise ValueError(f"post_stdev_previous should be a 1D array, got {post_stdev_previous.ndim} dimensions.")
-    if not isinstance(post_mean_target, np.ndarray):
-        raise TypeError(f"post_mean_target should be a numpy array, got the type of {type(post_mean_target).__name__}.")
-    if post_mean_target.ndim!=1:
-        raise ValueError(f"post_mean_target should be a 1D array, got {post_mean_target.ndim} dimensions.")
-    if not isinstance(post_stdev_target, np.ndarray):
-        raise TypeError(f"post_stdev_target should be a numpy array, got the type of {type(post_stdev_target).__name__}.")
-    if post_stdev_target.ndim!=1:
-        raise ValueError(f"post_stdev_target should be a 1D array, got {post_stdev_target.ndim} dimensions.")
-    if fit_data_X.shape[0]!=obs_data_Y.shape[0]:
-        raise ValueError(f"fit_data_X and obs_data_Y should have equal number of data, got {fit_data_X.shape[0]} and {obs_data_Y.shape[0]}.")
-    if predict_candidates_X.shape[0]!=post_mean_previous.shape[0]:
-        raise ValueError(f"predict_candidates_X and post_mean_previous should have equal number of data, got {predict_candidates_X.shape[0]} and {post_mean.shape[0]}.")
-    if predict_candidates_X.shape[0]!=post_stdev_previous.shape[0]:
-        raise ValueError(f"predict_candidates_X and post_stdev_previous should have equal number of data, got {predict_candidates_X.shape[0]} and {post_stdev.shape[0]}.")
-    if predict_candidates_X.shape[0]!=post_mean_target.shape[0]:
-        raise ValueError(f"predict_candidates_X and post_mean_target should have equal number of data, got {predict_candidates_X.shape[0]} and {post_mean_after.shape[0]}.")
-    if predict_candidates_X.shape[0]!=post_stdev_target.shape[0]:
-        raise ValueError(f"predict_candidates_X and post_stdev_target should have equal number of data, got {predict_candidates_X.shape[0]} and {post_stdev_after.shape[0]}.")
-    if not isinstance(max_stdev_design, float):
-        raise TypeError(f"max_stdev_design should be a float value, got the type of {type(max_stdev_design).__name__}.")
-    if not isinstance(sigma_coef, float):
-        raise TypeError(f"sigma_coef should be a float value, got the type of {type(sigma_coef).__name__}")
-    if sigma_coef<0:
-        raise ValueError(f"sigma_coef should be non-negative, got {sigma_coef}.")
-    if not isinstance(xlabel, str):
-        raise TypeError(f"xlabel should be a string value, got the type of {type(xlabel).__name__}.")
-    if not isinstance(ylabel, str):
-        raise TypeError(f"ylabel should be a string value, got the type of {type(ylabel).__name__}.")
-    if not isinstance(title, str):
-        raise TypeError(f"title should be a string value, got the type of {type(title).__name__}.")
-    if not isinstance(title_previous, str):
-        raise TypeError(f"title_previous should be a string value, got the type of {type(title_previoius).__name__}.")
-    if not isinstance(title_target, str):
-        raise TypeError(f"title_target should be a string value, got the type of {type(title_target).__name__}.")
-    
-    ## Creating a figure with two subplots.
-    figure, (ax1, ax2)=plt.subplots(1,2, figsize=fig_size)
-    
-    ## Left subplot
-    ## Plotting the experiment data up to the previous trial.
-    ax1.scatter(fit_data_X[:-1], obs_data_Y[:-1], c='black', label='Data')
-    ## Plotting the posterior mean, calculated with so-far obtained experiment data.
-    ax1.plot(predict_candidates_X, post_mean_previous, label="Prediction", linewidth=2.5, color='black')
-    ## Plotting the uncertainty range for each design candidate.
-    ax1.fill_between(predict_candidates_X.ravel(), post_mean_previous-sigma_coef*post_stdev_previous,
-                     post_mean_previous+sigma_coef*post_stdev_previous, alpha=0.3, label='Uncertainty')
-    ## Plotting a dotted vertical line, at the design candidate associated with maximum posterior standard deviation.
-    ax1.axvline(x=fit_data_X[-1], color='green', linestyle='--', linewidth=3)
-    ax1.set_xlabel(xlabel, fontsize=24)
-    ax1.set_ylabel(ylabel, fontsize=24)
-    ## Setting the title for the left subplot.
-    ax1.set_title(title_previous, fontsize=font_size)
-    
-
-    ## Right subplot
-    ## Plotting the experiment data up to the target trial.
-    ax2.scatter(fit_data_X, obs_data_Y, c='black')
-    ## Plotting the posterior mean, calculated with so-far obtained experiment data.
-    ax2.plot(predict_candidates_X, post_mean_target, linewidth=2.5, color='black')
-    ## Plotting the uncertainty range for each design candidate.
-    ax2.fill_between(predict_candidates_X.ravel(), post_mean_target-sigma_coef*post_stdev_target, 
-                     post_mean_target+sigma_coef*post_stdev_target, alpha=0.3)
-    ## Plotting an experiment data for the newly selected experimental design.
-    ax2.scatter(fit_data_X[-1], obs_data_Y[-1], c='red')
-    ## Plotting a dotted vertical line, at the design candidate associated with maximums posterior standard deviation.
-    ax2.axvline(x=max_stdev_design, color='green', linestyle='--', linewidth=3)
-    ax2.set_xlabel(xlabel, fontsize=24)
-    ax2.set_ylabel(ylabel, fontsize=24)
-    ## Setting the title for the right subplot.
-    ax2.set_title(title_target, fontsize=font_size)
-
-    ## Setting the title for the whole figure.
-    figure.suptitle(title, fontsize=font_size)
-    plt.tight_layout()
-    
-    return figure, ax1, ax2
+    # TODO 2D experiment
+    # TODO add plotting configs
 
 
+def plot_selection_frequency(
+    dataframe: pd.DataFrame,
+    bins: int = 10,
+    val_range: Tuple[float, float] = (0.0, 500.0),
+    column_names_specified: Optional[str] = None,
+    figure_size: Tuple[int, int] = (6, 4), 
+    mode: str = 'sum',
+    font_size_title = 20,
+    font_size_axis_label = 15,
 
-## This function plots the design selection frequencies of 1D GPAL as a 2D histogram.
-## GPAL selects the optimal design value among design candidates in an adaptive manner.
-## We can observe the distribution of those 'selected' design values (of the design variable),
-## therefore examine features of the function of our interest.
-## As "1D" in the function name implies, this functions plots a 2D histogram,
-## where the x-axis denotes the design values and the y-axis indicates the frequencies.
-
-
-## Parameter Descriptions.
-## fig_size: The size of the figure. Must be a tuple holding integer values.
-## num_data: The number of selected design values (i.e. the optimal design candidates).  
-## design_var: A numpy array holding all selected design values.
-## bins: The number of equal-length bins dividing the range of selected design values.
-## ranges: A tuple indicating the total range of the selected design values.
-## x_label: The text label associated with the x-axis (design candidates).
-## y_label: The text label associated with the y-axis (subject responses).
-## title: The title of the figure.
-## mode: A string determining the mode of the histogram. Must be either 'sum' or 'average'.
-##       Setting it to 'average' will normalize the histogram values.
-
-## NOTE: The ranges parameter will be automatically set to the folloiwng, if not specified explicitly.
-##       ranges = (np.min(design_var), np.max(design_var))
-
-## Return Value Specifications
-## figure: The whole resulting figure.
-## ax: A plot visualized in the figure.
-
-def plot_frequency_histogram_1D(fig_size:Tuple[int, int], 
-                                num_data:int, 
-                                design_var:npt.NDArray, 
-                                bins:int, 
-                                ranges:Optional[Tuple[float, float]], 
-                                x_label:str, 
-                                y_label:str, 
-                                title:str, 
-                                mode:str="sum"):
-    if not isinstance(fig_size, tuple):
-        raise TypeError(f"fig_size should be a tuple, got the type of {type(fig_size).__name__}.")
-    if any([not isinstance(fs, int) for fs in fig_size]):
-        raise TypeError(f"fig_size should have integer elements.")
-    if len(fig_size)!=2:
-        raise ValueError(f"fig_size should be of length 2, got {len(fig_size)}.")
-    if not isinstance(num_data, int):
-        raise TypeError(f"num_data should be an integer value, got the type of {type(num_data).__name__}.")
-    if num_data<1:
-        raise ValueError(f"num_data should be a positive integer, got {num_data}.")
-    if not isinstance(design_var, np.ndarray):
-        raise TypeError(f"design_var should be a numpy array, got the type of {type(design_var).__name__}.")
-    if design_var.ndim!=1:
-        raise ValueError(f"dv1 should be a 1D array, got {design_var.ndim} dimensions.")
+):
+    if not isinstance(dataframe, pd.DataFrame):
+        raise TypeError(f"dataframe should be a Pandas DataFrame, got the type of {type(dataframe).__name__}.")
     if not isinstance(bins, int):
         raise TypeError(f"bins should be an integer value, got the type of {type(bins).__name__}.")
-    if ranges is not None:
-        if not isinstance(ranges, tuple):
-            raise TypeError(f"ranges should be a tuple or None, got the type of {type(ranges).__name__}.")
-        if not all([isinstance(r, float) for r in ranges]):
-            raise TypeError(f"ranges should contain float elements.")
-        if len(ranges)!=2:
-            raise ValueError(f"ranges should be of length 2, got {len(ranges)}.")
+    if not bins>0:
+        raise ValueError(f"bins should be a positive integer, got {bins}.")
+    if not isinstance(val_range, Tuple):
+        raise TypeError(f"val_range should be a Tuple, got the type of {type(val_range).__name__}.")
+    else:
+        if len(val_range)!=2:
+            raise ValueError(f"val_range should have 2 elements, got {len(val_range)} elements.")
+    if not all([isinstance(r, float) for r in val_range]):
+        raise TypeError(f"val_range should only contain float values.")
+    if val_range[0] >= val_range[1]:
+        raise ValueError(f"val_range[1] should be larger than val_range[0].")
+    if column_names_specified is not None:
+        if not isinstance(column_names_specified, str):
+            raise TypeError(f"column_names_specified should be a string value, got the type of {type(column_names_specified).__name__}.")
+    if not isinstance(figure_size, Tuple):
+        raise TypeError(f"figure_size should be a Tuple, got the type of {type(figure_size).__name__}.")
+    if len(figure_size)!=2:
+        raise ValueError(f"figure_size should have 2 elements, got {len(figure_size)} elements.")
+    if not all([isinstance(fs, int) for fs in figure_size]):
+        raise TypeError(f"figure_size should only contain int values.")
     if not isinstance(mode, str):
         raise TypeError(f"mode should be a string value, got the type of {type(mode).__name__}.")
-    if mode not in ["average", "sum"]:
-        raise ValueError(f"mode should be either 'average' or 'sum', got {mode}.")
-    if not isinstance(x_label, str):
-        raise TypeError(f"x_label should be a string value, got the type of {type(x_label).__name__}.")
-    if not isinstance(y_label, str):
-        raise TypeError(f"y_label should be a string value, got the type of {type(y_label).__name__}.")
-    if not isinstance(title, str):
-        raise TypeError(f"title should be a string value, got the type of {type(title).__name__}.")
+    if mode not in ['sum', 'average']:
+        raise ValueError(f"mode should be either 'sum' or 'average', got {mode}.")
 
-    ## Drawing a figure
-    figure=plt.figure(figsize=fig_size)
-    ax=figure.add_subplot(1,1,1)
+    if column_names_specified is not None:
+        #print(f"The columns included in dataframe: {list(dataframe.columns)}.")
 
-    ## Creating a histogram with np.nistogram()
-    ## hist: The values of the resulting histogram.
-    ## dv1_pos: The values at the edge of each bins. 
-    hist, dv1_pos=np.histogram(design_var, bins=bins, range=ranges)
+        target_data_points = dataframe[column_names_specified].to_numpy()
+        
+        '''
+        n_names_specified = len(column_names_specified)
+
+        if n_names_specified == 2:
+            x_column_name, y_column_name = column_names_specified
+
+            missing_columns = [col for col in column_names_specified if col not in dataframe.columns]
+            if len(missing_columns)>0:
+                raise ValueError(f"The following columns cannot be found in the dataframe: {missing_columns}.")
+            
+            x_data_points = dataframe[x_column_name].tolist()
+            y_data_points = dataframe[y_column_name].tolist()
+
+        elif n_names_specified == 3:
+            x_column_name, y_column_name, z_column_name = column_names_specified
+
+            missing_columns = [col for col in column_names_specified if col not in dataframe.columns]
+            if missing_columns:
+                raise ValueError(f"Specified column names {missing_columns} not found in the dataframe")
+            
+            x_data_points = dataframe[x_column_name].tolist()
+            y_data_points = dataframe[y_column_name].tolist()
+            z_data_points = dataframe[z_column_name].tolist()
+        '''
+    else:
+        target_data_points = dataframe.iloc[:, 0].to_numpy()
+        '''
+        y_data_points = dataframe.iloc[:, 1].tolist()
+        '''
+    
+    figure=plt.figure(figsize=figure_size)
+    ax= figure.add_subplot(1,1,1)
+
+    mask_range = lambda v: v >= val_range[0] and v <= val_range[1]
+    mask_binary = np.array([mask_range(val) for val in target_data_points])
+    target_data_points=target_data_points[mask_binary]
+
+    hist, dv1_pos=np.histogram(target_data_points, bins=bins, range=val_range)
+    #print(dv1_pos)
     if mode=='average':
-        hist=hist/num_data
+        hist=hist/len(target_data_points)    ## Determining the width of each bar in the figure.
 
-    ## Determining the width of each bar in the figure.
-    bin_width = (ranges[1] - ranges[0]) / bins if ranges else dv1_pos[1] - dv1_pos[0]
-    ## Determining the position (x-coordinate) of the center of each bar.
+    if val_range is not None:
+        bin_width = (val_range[1] - val_range[0])/bins
+    else:
+        bin_width = (dv1_pos[-1] - dv1_pos[0])/bins
+
     bin_centers = dv1_pos[:-1] + bin_width / 2
     
-    ## Drawing a bar plot with the obtained histogram values
     ax.bar(
         x=bin_centers,
         height=hist.ravel(),
@@ -370,189 +381,108 @@ def plot_frequency_histogram_1D(fig_size:Tuple[int, int],
         edgecolor='black',     
         linewidth=0.8          
     )
+    if mode=='sum':
+    	ax.yaxis.set_major_locator(MultipleLocator(1))
 
-    ## Setting the labels and the title.
-    ax.set_xlabel(x_label)
-    ax.set_ylabel(y_label)
-    ax.set_title(title)
-
-    return figure, ax
-
-
-
-## This function plots the design selection frequencies of 2D GPAL as a 3D histogram.
-## GPAL selects the optimal design value among design candidates in an adaptive manner.
-## We can observe the distribution of those 'selected' design values (of the design variable),
-## therefore examine features of the function of our interest.
-## As "2D" in the function name implies, this functions plots a 3DD histogram,
-## where the (x,y) coordinate denotes the design values and the z-axis indicates the frequencies.
-
-
-## Parameter Descriptions.
-## fig_size: The size of the figure. Must be a tuple holding integer values.
-## num_data: The number of selected design values (i.e. the optimal design candidates).  
-## design_var: A numpy array holding all selected design (coordinate) values. 
-##             Each row corresponds to a single design. Must contain 2 columns (considering 2D GPAL).
-## bins: A list holding the number of equal-length bins for the x,y axis. 
-##       Each element corresponds to the number of bins for each axis. Must be of length 2.
-## ranges: A list of 2 lists, indicating the total range of the selected design values.
-##         The first list elements specifies the range of x-coordinate values of the selected designs.
-##         The second list element specifies the range of y-coordinate values of the selected designs.
-## x_label: The text label associated with the x-axis (first design variable)
-## y_label: The text label associated with the y-axis (second design variable)
-## z_label: The text label associated with the z-axis.
-## title: The title of the figure.
-## mode: A string determining the mode of the histogram. Must be either 'sum' or 'average'.
-##       Setting it to 'average' will normalize the histogram values.
-
-
-## NOTE: The ranges parameter will be automatically set to the folloiwng, if not specified explicitly.
-##       ranges = [[np.min(design_var[:,0]), np.max(design_var[:,0])],
-##                 [np.min(design_var[:,1]), np.max(design_var[:,1])]]
-
-## Return Value Specifications
-## figure: The whole resulting figure.
-## ax: A plot visualized in the figure.
-def plot_frequency_histogram_2D(fig_size:Tuple[int, int], 
-                                num_data:int, 
-                                design_vars:npt.NDArray, 
-                                bins:list[int], 
-                                ranges:Optional[list[list[float]]], 
-                                xlabel:str, 
-                                ylabel:str, 
-                                zlabel:str, 
-                                title:str, 
-                                mode:str='sum'):
-    
-    if not isinstance(fig_size, tuple):
-        raise TypeError(f"fig_size should be a tuple, got the type of {type(fig_size).__name__}.")
-    if any([not isinstance(fs, int) for fs in fig_size]):
-        raise ValueError(f"fig_size should contain integer elements.")
-    if len(fig_size)!=2:
-        raise ValueError(f"fig_size should be of length 2, got {len(fig_size)}.")
-    if not isinstance(num_data, int):
-        raise TypeError(f"num_data should be an integer value, got the type of {type(num_data).__name__}.")
-    if not isinstance(design_vars, np.ndarray):
-        raise TypeError(f"design_vars should be a numpy array, got the type of {type(design_vars).__name__}.")
-    if design_vars.ndim!=2:
-        raise ValueError(f"design_vars should be a 2D array, got {design_vars.ndim} dimensions.")
-    if design_vars.shape[1]!=2:
-        raise ValueError(f"design_vars should have two columns, got {design_vars.shape[1]} columns.")
-    if not isinstance(bins, list):
-        raise TypeError(f"bins should be a list, got the type of {type(bins).__name__}.")
-    if not all([isinstance(b, int) for b in bins]):
-        raise TypeError(f"bins should contain integer values.")
-    if len(bins)!=2:
-        raise ValueError(f"bins should be of length 2, got {len(bins)}.")
-    if ranges is not None:
-        if not isinstance(ranges, list):
-            raise TypeError(f"ranges should be a list, got the type of {type(ranges).__name__}.")
-        if not all([isinstance(r, list) for r in ranges]):
-            raise TypeError(f"ranges should contain list elements.")
-        if not all([isinstance(r1, float) for r1 in ranges[0]]):
-            raise TypeError(f"ranges[0] should contain float type elements.")
-        if not all([isinstance(r2, float) for r2 in ranges[1]]):
-            raise TypeError(f"ranges[1] should contain float type elements.")
-        if len(ranges)!=2:
-            raise ValueError(f"ranges should contain two list elements, got {len(ranges)}.")
-        if len(ranges[0])!=2:
-            raise ValueError(f"ranges[0] should contain two float elements, got {len(ranges[0])}.")
-        if len(ranges[1])!=2:
-            raise ValueError(f"ranges[1] should contain two float elements, got {len(ranges[1])}.")
-    
-    if not isinstance(xlabel, str):
-        raise TypeError(f"xlabel should be a string value, got the type of {type(xlabel).__name__}.")
-    if not isinstance(ylabel, str):
-        raise TypeError(f"ylabel should be a string value, got the type of {type(ylabel).__name__}.")
-    if not isinstance(zlabel, str):
-        raise TypeError(f"zlabel should be a string value, got the type of {type(zlabel).__name__}.")
-    if not isinstance(title, str):
-        raise TypeError(f"title should be a string value, got the type of {type(title).__name__}.")
-    if not isinstance(mode, str):
-        raise TypeError(f"mode should be a string value, got the type of {type(mode).__name__}.")
-    if mode not in ["average", "sum"]:
-        raise ValueError(f"mode should be either 'average' or 'sum', got {mode}.")
-
-       
-    figure=plt.figure()
-    ax=figure.add_subplot(projection='3d')
-    hist, dv1_edge, dv2_edge=np.histogram2d(design_vars[:,0], design_vars[:,1], bins=bins, range=ranges)
-    if mode=="average":
-        hist=hist/num_data
-
-    dv1_pos, dv2_pos=np.meshgrid(dv1_edge[:-1], dv2_edge[:-1], indexing="ij")
-    dv1_pos=dv1_pos.ravel()
-    dv2_pos=dv2_pos.ravel()
-    hist_pos=0
-
-    bin_width=(ranges[0][1]-ranges[0][0])/bins[0] if ranges else dv1_edge[1] - dv1_edge[0]
-    bin_depth=(ranges[1][1]-ranges[1][0])/bins[1] if ranges else dv2_edge[1] - dv1_edge[0]
-    h=hist.ravel()
-    
-    bin_centers_dv1 = dv1_pos[:-1] + bin_width/2
-    bin_centers_dv2 = dv2_pos[:-1] + bin_depth/2
-    
-    
-    ax.bar3d(x=bin_centers_dv1, y=bin_centers_dv2, z=hist_pos, 
-             dx=bin_width, dy=bin_depth, dz=h, zsort='average')
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    ax.set_zlabel(zlabel)
-    ax.set_title(title)
+    ax.set_xlabel("Stimulus Range", fontsize = font_size_axis_label)
+    if mode == "sum":
+        ax.set_ylabel("Selection Frequency", fontsize = font_size_axis_label)
+    elif mode == "average":
+        ax.set_ylabel("Selection Ratio", fontsize = font_size_axis_label)
+    ax.set_title("Stimulus Selection Histogram", fontsize = font_size_title)
+    figure.tight_layout()
 
     return figure, ax
 
-def plot_convergence(gp_regressor, x_range, y_range, x_data_points, y_data_points, figure_size=(12, 4), function_colors=["lightgreen", "lightblue", "mediumpurple", "black"]):
-    """
-        Visualize Gaussian Process (GP) regression convergence.
 
-        This function fits a GaussianProcessRegressor incrementally as more data points are added,
-        plots the GP mean function at selected quantiles of the training process, and shows
-        the convergence of the mean squared error (MSE) between each trial and the final trial.
-
-        Arguments:
-            gp_regressor (GaussianProcessRegressor): 
-                An initialized scikit-learn GaussianProcessRegressor object.
-                Raises TypeError if the object is not of this type.
-            x_range (array-like): 
-                Full range of possible X values.
-            y_range (array-like): 
-                Full range of possible Y values.
-            x_data_points (array-like): 
-                Observed X data points.
-            y_data_points (array-like): 
-                Observed Y data points.
-            figure_size (tuple, optional): 
-                Size of the figure as (width, height). Defaults to (12, 4).
-            function_colors (list of strings, optional): 
-                Colors for visualizing GP mean functions at different quantiles. 
-                Defaults to ["lightgreen", "lightblue", "mediumpurple", "black"].
-
-        Returns:
-            tuple:
-                - figure (matplotlib.figure.Figure): The overall figure object.
-                - axes (numpy.ndarray of matplotlib.axes.Axes): Array containing the two subplot axes.
-
-        Raises:
-            TypeError: If `gp_regressor` is not an instance of 
-                    sklearn.gaussian_process.GaussianProcessRegressor.
-            ValueError: If the lengths of `x_data_points` and `y_data_points` do not match
-    """
-
+def plot_convergence(gp_regressor: GaussianProcessRegressor, 
+                     dataframe: pd.DataFrame, 
+                     x_range: Optional[Tuple[float, float]] = None, 
+                     y_range: Optional[Tuple[float, float]] = None, 
+                     x_num: int = 100,
+                     column_names_specified: Optional[list[str]] = None, 
+                     figure_size: Tuple[int, int]=(12, 4), 
+                     function_colors: list[str]=["lightgreen", "lightblue", "mediumpurple", "black"],
+                     font_size_title = 20,
+                     font_size_axis_label = 15):
+    
     if not isinstance(gp_regressor, GaussianProcessRegressor):
-        raise TypeError(
-            f"gp_regressor must be sklearn.gaussian_process.GaussianProcessRegressor, "
-            f"got {type(gp_regressor).__name__}."
-        )
+        raise TypeError(f"gp_regressor should be a GaussianProcessRegressor object, got the type of {type(gp_regressor).__name__}.")
+    if not isinstance(dataframe, pd.DataFrame):
+        raise TypeError(f"dataframe should be a Pandas DataFrame, got the type of {type(dataframe).__name__}.")
+    if x_range is not None:
+        if not isinstance(x_range, Tuple):
+            raise TypeError(f"x_range should be a Tuple, got the type of {type(x_range).__name__}.")
+        else:
+            if len(x_range)!=2:
+                raise ValueError(f"x_range should have 2 elements, got {len(x_range)} elements.")
+        if not all([isinstance(r, float) for r in x_range]):
+            raise TypeError(f"x_range should only contain float values.")
+        if x_range[0] >= x_range[1]:
+            raise ValueError(f"x_range[1] should be larger than x_range[0].")
+    if y_range is not None:
+        if not isinstance(y_range, Tuple):
+            raise TypeError(f"y_range should be a Tuple, got the type of {type(y_range).__name__}.")
+        else:
+            if len(y_range)!=2:
+                raise ValueError(f"y_range should have 2 elements, got {len(y_range)} elements.")
+        if not all([isinstance(r, float) for r in y_range]):
+            raise TypeError(f"y_range should only contain float values.")
+        if y_range[0] >= y_range[1]:
+            raise ValueError(f"y_range[1] should be larger than y_range[0].")
+    if not isinstance(x_num, int):
+        raise TypeError(f"x_num should be an integer value, got the type of {type(x_num).__name__}.")
+    if not x_num>0:
+        raise ValueError(f"x_num should be a positive integer, got {x_num}.")
     
-    if len(x_data_points) != len(y_data_points):
-        raise ValueError(
-            f"x_data_points and y_data_points must have the same length, "
-            f"got {len(x_data_points)} and {len(y_data_points)} for x and y respectively."
-        )
+    if not isinstance(figure_size, Tuple):
+        raise TypeError(f"figure_size should be a Tuple, got the type of {type(figure_size).__name__}.")
+    if len(figure_size)!=2:
+        raise ValueError(f"figure_size should have 2 elements, got {len(figure_size)} elements.")
+    if not all([isinstance(fs, int) for fs in figure_size]):
+        raise TypeError(f"figure_size should only contain int values.")
+     
+    if column_names_specified is not None:
+        if not isinstance(column_names_specified, list):
+            raise TypeError(f"column_names_specified should be a list, got the type of {type(column_names_specified).__name__}.")
+        if not all([isinstance(cn, str) for cn in column_names_specified]):
+            raise TypeError(f"column_names_specified should only contain string elements.")
+        if len(column_names_specified)<2 or len(column_names_specified)>3:
+            raise ValueError(f"column_names_specified should be of length 2 or 3, got the length of {len(column_names_specified)}.")
 
-    num_data_points = len(x_data_points)
+
+    if column_names_specified is not None:
+        n_names_specified = len(column_names_specified)
+
+        if n_names_specified == 2:
+            x_column_name, y_column_name = column_names_specified
+
+            missing_columns = [col for col in column_names_specified if col not in dataframe.columns]
+            if len(missing_columns)>0:
+                raise ValueError(f"The following columns cannot be found in the dataframe: {missing_columns}.")
+            
+            x_data_points = dataframe[x_column_name].to_numpy()
+            y_data_points = dataframe[y_column_name].to_numpy()
+
+        elif n_names_specified == 3:
+            x_column_name, y_column_name, z_column_name = column_names_specified
+
+            # If the specified column namaes can't be searched on the dataframe, raise ValueError
+            missing_columns = [col for col in column_names_specified if col not in dataframe.columns]
+            if len(missing_columns)>0:
+                raise ValueError(f"The following columns cannot be found in the dataframe: {missing_columns}.")
+            
+            x_data_points = dataframe[x_column_name].to_numpy()
+            y_data_points = dataframe[y_column_name].to_numpy()
+            z_data_points = dataframe[z_column_name].to_numpy()
         
+    else:
+        x_data_points = dataframe.iloc[:, 0].to_numpy()
+        y_data_points = dataframe.iloc[:, 1].to_numpy()
+
+    
+    num_data_points = len(x_data_points)
+    
     figure, axes = plt.subplots(1, 2, figsize=figure_size)
     gp_mean_function_list = []
 
@@ -562,58 +492,66 @@ def plot_convergence(gp_regressor, x_range, y_range, x_data_points, y_data_point
         n_trials_visualize.append(int(num_data_points * quantile))
 
     # Generate plot 1: GP mean functions visualized
-    x_range_reshaped_for_gpr = np.array(x_range).reshape(-1, 1)
+    if x_range is not None:
+        x_values_predict = np.linspace(x_range[0], x_range[1], x_num)
+    else:
+        x_values_predict = np.linspace(min(x_data_points), max(x_data_points), x_num)
+    x_range_reshaped_for_gpr = x_values_predict.reshape(-1,1)
+    
+            
     quantile_count = 0
     for i in range(1, num_data_points+1):
-        x_data_points_current_trial = x_data_points[:i]
-        x_data_points_reshaped_for_gpr = np.array(x_data_points_current_trial).reshape(-1, 1)
+        x_data_points_current_trial = x_data_points[:i].reshape(-1,1)
 
         y_data_points_current_trial = y_data_points[:i]
-        y_data_points_reshaped_for_gpr = np.array(y_data_points_current_trial).reshape(-1, 1)
         
-        gp_regressor.fit(x_data_points_reshaped_for_gpr, y_data_points_reshaped_for_gpr)
+        gp_regressor.fit(x_data_points_current_trial, y_data_points_current_trial)
 
         gp_mean_function = gp_regressor.predict(x_range_reshaped_for_gpr)
 
         gp_mean_function_list.append(gp_mean_function)
-        
+
         if i in n_trials_visualize[:-1]:
             current_quantile = int(quantiles_visualize[quantile_count] * 100)
-            axes[0].plot(x_range, gp_mean_function, color=function_colors[quantile_count], linewidth=2, label=f"Trial #{i} ({current_quantile}%)")
+            axes[1].plot(x_range_reshaped_for_gpr.ravel(), gp_mean_function, color=function_colors[quantile_count], linewidth=2, label=f"Trial #{i} ({current_quantile}%)")
             quantile_count += 1
         elif i == n_trials_visualize[-1]:
-            axes[0].plot(x_range, gp_mean_function, color=function_colors[-1], linewidth=2.5, label="Final Trial")
+            axes[1].plot(x_range_reshaped_for_gpr.ravel(), gp_mean_function, color=function_colors[-1], linewidth=2.5, label="Final Trial")
 
 
     # Set plot margins for better visibility
-    ymin, ymax = min(y_range), max(y_range)
+    if y_range:
+        ymin, ymax = y_range[0], y_range[1]
+    else:
+        ymin, ymax = min(y_data_points), max(y_data_points)
     span = ymax - ymin
     margin = 0.1 * span
-    axes[0].set_ylim(ymin - margin, ymax + margin)
-    axes[0].set_title("GP mean functions visualized")
-    axes[0].legend()
+    axes[1].set_ylim(ymin - margin, ymax + margin)
+    axes[1].set_title("GP Mean Functions", fontsize=font_size_title)
+    axes[1].set_xlabel("Stimulus", fontsize = font_size_axis_label)
+    axes[1].set_ylabel("Response", fontsize = font_size_axis_label)
+    axes[1].legend()
 
     # Data points scatter
-    axes[0].scatter(x_data_points, y_data_points, c="darkgrey", edgecolor="white", zorder=3, s=30)
+    axes[1].scatter(x_data_points, y_data_points, c="black", edgecolor="white", zorder=3, s=30)
 
     # Generate plot 2: MSE value between each trial and the final trial
     mse_values = []
-    print(num_data_points)
-    print(len(gp_mean_function_list))
+    #print(num_data_points)
+    #print(len(gp_mean_function_list))
     for i in range(num_data_points):
         mse = mean_squared_error(gp_mean_function_list[i], gp_mean_function_list[-1])
         mse_values.append(mse)
 
     trials = np.arange(1, len(mse_values) + 1) 
-    axes[1].plot(trials, mse_values, marker='o', linewidth=2)
-    axes[1].xaxis.set_major_locator(MultipleLocator(1))
-    axes[1].set_xlim(0.5, len(mse_values)+0.5)
-    axes[1].set_xlabel("Trial")
-    axes[1].set_ylabel("MSE")
-    axes[1].set_title("Distance to the final function")
-    axes[1].grid(True, alpha=0.3)
+    axes[0].plot(trials, mse_values, marker='o', linewidth=2)
+    axes[0].xaxis.set_major_locator(MultipleLocator(1))
+    axes[0].set_xlim(0.5, len(mse_values)+0.5)
+    axes[0].set_xlabel("Trial", fontsize=font_size_axis_label)
+    axes[0].set_ylabel("MSE", fontsize=font_size_axis_label)
+    axes[0].set_title("Distance to the Final Function", fontsize=font_size_title)
+    axes[0].grid(True, alpha=0.3)
 
     figure.tight_layout()
-    figure.suptitle("Convergence Plot", fontsize=16, y=1.03)
 
-    return figure, axes
+    return figure, axes, mse_values

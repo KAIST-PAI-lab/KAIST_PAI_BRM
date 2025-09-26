@@ -192,7 +192,9 @@ if __name__=="__main__":
             kl_bd_std[i]=np.nan
         kl_bd_num[i]=len(indices_bd)
 
-    kl_mean=np.vstack([kl_gpal_mean, kl_bd_mean]).T
+    
+    kl_mean=np.vstack([kl_gpal_mean, kl_bd_mean]).T    
+    kl_mean[-1]=0
     df=pd.DataFrame(kl_mean,
                     index=[f"Trial {i+1}" for i in range(num_trials)],
                     columns=["GPAL", "BD"])
@@ -209,7 +211,7 @@ if __name__=="__main__":
     for j in range(len(kl_bd_num)):
         if kl_bd_num[j]>1:
             bd_crit[j]=t.ppf(0.975, kl_bd_num[j]-1)
-    
+
     #kl_gpal_num[kl_gpal_num==0]=np.nan
     #kl_bd_num[kl_bd_num==0]=np.nan
     
@@ -223,7 +225,7 @@ if __name__=="__main__":
     #figure, axes = plt.subplots(2, 1, figsize=(6, 9))
     #figure.subplots_adjust(hspace=0.5)
     beta=1.0
-    # --- GPAL plot ---
+    
     plt.plot(
         trials[2:],
         kl_mean[2:,0],
@@ -237,10 +239,18 @@ if __name__=="__main__":
     plt.fill_between(trials[2:], kl_mean[2:,0]+beta*gpal_error[2:], kl_mean[2:,0]-beta*gpal_error[2:], alpha=0.25, color="blue")
     # --- BD plot ---
     plt.plot(trials[2:], kl_mean[2:,1], color="red", marker="o", linewidth=2, markersize=4, 
-                 label="Balanced Design")
+                 label="Balanced Random")
     plt.fill_between(trials[2:], kl_mean[2:,1]+beta*bd_error[2:], kl_mean[2:,1]-beta*bd_error[2:], alpha=0.25, color="red")
+    
+    '''
+    plt.plot(trials, np.log10(kl_mean[:,0]), color="blue", marker="o", linewidth=2, markersize=4, label="GPAL")
+    plt.fill_between(trials, np.log10(kl_mean[:,0]+beta*gpal_error), np.log10(kl_mean[:,0]-beta*gpal_error), alpha=0.25, color="blue")
+    plt.plot(trials, np.log10(kl_mean[:,1]), color="red", marker="o", linewidth=2, markersize=4, label="Balanced Deisgn")
+    plt.fill_between(trials, np.log10(kl_mean[:,1]+beta*bd_error), np.log10(kl_mean[:,1]-beta*bd_error), alpha=0.25, color="red")
+    '''
+
     plt.ylim(bottom=0)
-    plt.xticks([i for i in range(3, 20, 2)])
+    plt.xticks([i for i in range(3, 21, 1)])
     label_font_size = 24
     plt.xlabel("Trials", fontsize=label_font_size)
     plt.ylabel("KL Divergence", fontsize=label_font_size)
@@ -248,6 +258,8 @@ if __name__=="__main__":
     plt.tick_params('y', labelsize=20)
     #plt.title("Mean Convergence Plot\n(Original Data)", fontsize=20, fontweight="bold")
     plt.legend(fontsize=label_font_size)
-    plt.show()
+    
+    figname=f"convergence_KL_alpha_{alpha}.png"
+    plt.savefig(os.path.join("figures", figname))
 
     
