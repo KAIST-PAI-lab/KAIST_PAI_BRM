@@ -191,22 +191,16 @@ for trial_index in range(1, num_trials):
     event.waitKeys(keyList=['space'])  
 
 ## Closing the psychopy experiment window.
-visuals['win'].close() 
+visuals["win"].close()
 
-'''
-Saving experiment results in the .csv format
-'''
-save_results_dir='results'
-os.makedirs(save_results_dir, exist_ok=True)
-results_df = pd.DataFrame(data_record, columns=['given_number', 'response'])
-result_path = os.path.join(save_results_dir, f'results_trial_{num_trials}.csv')
-results_df.to_csv(result_path, index=False)
-
-
-''' =================================== Step 3 ========================================='''
+save_results_dir = "results"
+os.makedirs(save_results_dir, exist_ok=True) 
+results_df = pd.DataFrame(data_record, columns=["given_number", "response"])
+result_path = os.path.join(save_results_dir, f"results_trial_{num_trials}.csv")
+results_df.to_csv(path_or_buf=result_path, index=False)
 
 save_figures_dir = "figures"
-os.makedirs(save_figures_dir, exist_ok=True)
+os.makedirs(save_figures_dir, exist_ok=True) 
 figure_GP_path = os.path.join(save_figures_dir, f"figure_plot_GP.png")
 figure_convergence_path = os.path.join(save_figures_dir, f"figure_plot_convergence.png")
 figure_frequency_path = os.path.join(save_figures_dir, f"figure_plot_frequency.png")
@@ -221,6 +215,7 @@ figure_GP.show()
 
 figure_conv, axes_conv, mse_values = plot_convergence(gp_regressor=gpr, dataframe=results_df)
 figure_GP.savefig(figure_convergence_path)
+figure_conv.show()
 
 figure_freq, ax_freq = plot_selection_frequency(dataframe=results_df)
 figure_freq.savefig(figure_frequency_path)
