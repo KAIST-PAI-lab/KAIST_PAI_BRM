@@ -234,11 +234,16 @@ Saving experiment results in the .csv format
 visuals["win"].close()
 
 save_results_dir = "results"
+os.makedirs(save_results_dir, exist_ok=True) 
 results_df = pd.DataFrame(data_record, columns=["given_number", "response"])
 result_path = os.path.join(save_results_dir, f"results_trial_{num_trials}.csv")
 results_df.to_csv(path_or_buf=result_path, index=False)
 
 save_figures_dir = "figures"
+os.makedirs(save_figures_dir, exist_ok=True) 
+figure_GP_path = os.path.join(save_figures_dir, f"figure_plot_GP.png")
+figure_convergence_path = os.path.join(save_figures_dir, f"figure_plot_convergence.png")
+figure_frequency_path = os.path.join(save_figures_dir, f"figure_plot_frequency.png")
 
 # Import result analysis functions
 from gpal.gpal_plot_new import (plot_convergence, plot_GP,
@@ -248,10 +253,13 @@ from gpal.gpal_plot_new import (plot_convergence, plot_GP,
 results_df = pd.read_csv(result_path)
 
 figure_GP, axes_GP, fitted_gpr = plot_GP(gp_regressor=gpr, dataframe=results_df)
+figure_GP.savefig(figure_GP_path)
 figure_GP.show()
 
 figure_conv, axes_conv, mse_values = plot_convergence(gp_regressor=gpr, dataframe=results_df)
+figure_GP.savefig(figure_convergence_path)
 figure_conv.show()
 
 figure_freq, ax_freq = plot_selection_frequency(dataframe=results_df)
+figure_freq.savefig(figure_frequency_path)
 figure_freq.show()
