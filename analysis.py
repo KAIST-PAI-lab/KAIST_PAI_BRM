@@ -1,4 +1,5 @@
 from gpal.gpal_plot import plot_GPAL_uncertainty, plot_frequency_histogram_1D, plot_GPAL_compare_uncertainty
+from outlier_detect import outlier_detect
 import pandas as pd
 import numpy as np
 import os
@@ -16,15 +17,20 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-def plot_GPAL_fit(fig_size: Tuple[int, int], 
+def plot_GPAL_fit(fig_size: Tuple[int, int],
+                  opt:str, 
                   gpr_dir: str, 
                   sbj_dir: str, 
                   fig_dir: str,
-                  sbj_id: int, 
-                  predict_candidates_X:NDArray, 
+                  sbj_id: int,
+                  file_name:str,
+                  column_name_X:str,
+                  column_name_Y:str, 
+                  predict_candidates_X:NDArray,
+                  title:str,
                   trial_idx:int):
     
-    filePath=os.path.join(sbj_dir, f"ado_results_{sbj_id}.csv")
+    filePath=os.path.join(sbj_dir, file_name)
     if os.path.exists(filePath):
         df=pd.read_csv(filePath)
     else:
@@ -34,18 +40,18 @@ def plot_GPAL_fit(fig_size: Tuple[int, int],
     with open(gprPath, 'rb') as f:
         gpr=pickle.load(f)
 
-    gns=df['given_number'].to_numpy()
-    ests=df['estimation'].to_numpy()
+    gns=df[column_name_X].to_numpy()
+    ests=df[column_name_Y].to_numpy()
     gns=np.expand_dims(gns, -1)
     fit_data_X=gns[:trial_idx+1]
     obs_data_Y=ests[:trial_idx+1]
 
-    new_noise_lower = 1e-2
+    new_noise_lower = 5e-2
     original_kernel=gpr.kernel
     new_noise_kernel=original_kernel.clone_with_theta(original_kernel.theta)
     new_noise_kernel.set_params(k2__noise_level_bounds=(new_noise_lower, 1e5))
 
-
+    
     gpr=GaussianProcessRegressor(new_noise_kernel, normalize_y=True, n_restarts_optimizer=100)
     for fit_index in range(1, trial_idx+1):
         gpr.fit(fit_data_X[:fit_index], obs_data_Y[:fit_index])
@@ -54,7 +60,7 @@ def plot_GPAL_fit(fig_size: Tuple[int, int],
 
     post_mean_final, post_stdev_final = gpr.predict(np.expand_dims(predict_candidates_X, -1), return_std=True)
 
-    title=f"Subject #{sbj_id}, Noise Level: {fitted_noise:.4f}"
+    #title=f"Subject #{sbj_id}, Noise Level: {fitted_noise:.4f}"
     if not os.path.exists(fig_dir):
         os.makedirs(fig_dir, exist_ok=True)
  
@@ -64,23 +70,25 @@ def plot_GPAL_fit(fig_size: Tuple[int, int],
                                     predict_candidates_X=predict_candidates_X, 
                                     post_mean=post_mean_final, 
                                     post_stdev=post_stdev_final, 
-                                    x_label='Given Number', 
-                                    y_label='Estiamte', 
+                                    x_label='Stimulus Feature', 
+                                    y_label='Response', 
                                     title=title, 
                                     sigma_coef=1.0)
 
-    filename=os.path.join(fig_dir, f"uncertainty_{sbj_id}_initialized_{new_noise_lower}.png")
-    fig.savefig(filename)
+    #filename=os.path.join(fig_dir, f"uncertainty_{sbj_id}_initialized_{new_noise_lower}.png")
+    #fig.savefig(filename)
+    return fig, ax
+    
     '''
     gpr2=GaussianProcessRegressor(original_kernel, normalize_y=True, n_restarts_optimizer=100)
-    for fit_index in range(1, trial_idx):
+    for fit_index in range(1, trial_idx+1):
         gpr2.fit(fit_data_X[:fit_index], obs_data_Y[:fit_index])
-    post_mean_previous, post_stdev_previous=gpr.predict(np.expand_dims(predict_candidates_X, -1), return_std=True)
-    max_stdev_design=predict_candidates_X[np.argmax(post_stdev_previous)]
+    post_mean_previous, post_stdev_previous=gpr2.predict(np.expand_dims(predict_candidates_X, -1), return_std=True)
     gpr2.fit(fit_data_X[:trial_idx+1], obs_data_Y[:trial_idx+1])
-    post_mean_target, post_stdev_target=gpr.predict(np.expand_dims(predict_candidates_X, -1), return_std=True)
-    fig, ax = plot_GPAL_compare_uncertainty(fig_size=fig_size, 
-                                            font_size=16,
+    post_mean_target, post_stdev_target=gpr2.predict(np.expand_dims(predict_candidates_X, -1), return_std=True)
+    max_stdev_design=predict_candidates_X[np.argmax(post_stdev_target)]
+    fig, ax1, ax2 = plot_GPAL_compare_uncertainty(fig_size=fig_size, 
+                                            font_size=24,
                                             fit_data_X=fit_data_X,
                                             obs_data_Y=obs_data_Y,
                                             predict_candidates_X=predict_candidates_X,
@@ -88,14 +96,17 @@ def plot_GPAL_fit(fig_size: Tuple[int, int],
                                             post_stdev_previous=post_stdev_previous,
                                             post_mean_target=post_mean_target,
                                             post_stdev_target=post_stdev_target,
-                                            title=f"Subject #{sbj_id}",
-                                            title_previous=f"Trial {trial_idx-1}",
-                                            title_target=f"Trial #{trial_idx}",
+                                            xlabel="Stimulus Feature",
+                                            ylabel="Response",
+                                            title=f"",
+                                            title_previous=f"Trial #{trial_idx}",
+                                            title_target=f"Trial #{trial_idx+1}",
                                             max_stdev_design=max_stdev_design,
                                             sigma_coef=1.0
                                             )
-
+    return fig, ax1, ax2
     '''
+
 def plotFreq(figsize:Tuple[int, int], dir:str, opt:str, n_trials: int, bin:int, ranges:Optional[Tuple[float, float]], mode:str='sum'):
     
     filenames=[]
@@ -126,23 +137,60 @@ def plotFreq(figsize:Tuple[int, int], dir:str, opt:str, n_trials: int, bin:int, 
 
 
 if __name__=="__main__":
-    figsize=(16, 8)
+    figsize=(10,6)
     n_trials=20
-    pred_cand_X=np.linspace(5, 500, (500-5)//5+1)
-    opt='ado'
+    pred_cand_X=np.linspace(5, 520, (520-5)//5+1)
+    opt='gpal'
     results_dir=os.path.join('experiment_results', '')
 
-    sbj_IDs=[int(dirname[-8:]) for dirname in os.listdir(results_dir)]
+    sbj_IDs=[25081314]
     for sbjID in sbj_IDs:
-        sbj_dir=os.path.join('experiment_results', f'participant_{sbjID}')
+        ref_dir=os.path.join('experiment_results', f"participant_{sbjID}")
+        out_dir=os.path.join('outlier_related', f'{sbjID}')
         gpr_dir=os.path.join('models', f"{sbjID}")
         fig_dir=os.path.join('figures', f"{opt}", f"{sbjID}")
+        
+        fig1, ax1 = plot_GPAL_fit(fig_size=figsize,
+                                    opt=opt,
+                                    gpr_dir=gpr_dir,
+                                    sbj_dir=ref_dir,
+                                    fig_dir=fig_dir,
+                                    sbj_id=sbjID,
+                                    file_name=f"{opt}_results_{sbjID}.csv",
+                                    column_name_X=f"given_number",
+                                    column_name_Y=f"estimation",
+                                    predict_candidates_X=pred_cand_X,
+                                    title="Raw Data",
+                                    trial_idx=20)
+        '''
+        fig2, ax2 = plot_GPAL_fit(fig_size=figsize,
+                                  opt=opt,
+                                  gpr_dir=gpr_dir,
+                                  sbj_dir=out_dir,
+                                  fig_dir=fig_dir,
+                                  sbj_id=sbjID,
+                                  file_name=f"Inliers_{opt}_0.005.csv",
+                                  column_name_X="Feature Stimulus",
+                                  column_name_Y="Responses",
+                                  predict_candidates_X=pred_cand_X,
+                                  title="Excluding Outliers",
+                                  trial_idx=14)
+        '''
+        
+        ax1.set_xlim(0, 520)
+        ax1.set_ylim(0, 550)
+        ax1.set_xticks(np.arange(0, 520, 50))
+        ax1.tick_params(axis='x', labelsize=14)
+        ax1.set_yticks(np.arange(0, 550, 50))
+        ax1.tick_params(axis='y', labelsize=14)
+        '''
+        ax2.set_xlim(0, 520)
+        ax2.set_ylim(0, 550)
+        ax2.set_xticks(np.arange(0, 520, 50))
+        ax2.tick_params(axis='x', labelsize=14)
+        ax2.set_yticks(np.arange(0, 550, 50))
+        ax2.tick_params(axis='y', labelsize=14)
 
-
-        plot_GPAL_fit(fig_size=figsize, 
-                      gpr_dir=gpr_dir, 
-                      sbj_dir=sbj_dir, 
-                      fig_dir=fig_dir,
-                      sbj_id=sbjID, 
-                      predict_candidates_X=pred_cand_X, 
-                      trial_idx=19+1)
+        #fig.tight_layout()
+        '''
+        plt.show()

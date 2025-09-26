@@ -1,6 +1,5 @@
 from psychopy import visual, event
 from psychopy.visual import ElementArrayStim
-from sklearn.gaussian_process.kernels import Kernel
 import numpy as np
 import math, time, random
 
@@ -22,7 +21,7 @@ def initialize_psychopy(fullscr=False):
     marker = visual.Line(win, start=(0, -10), end=(0, 10), lineColor='orange', lineWidth=3)
     img_stim = visual.ImageStim(
         win=win,
-        image='./nlt_main/images/random_noise.png',
+        image='./images/random_noise.png',
         pos=(0, 200),
         size=(300, 300)
     )
@@ -146,6 +145,8 @@ def show_and_get_response(number, visuals, max_number, size_control=False):
 
     if isinstance(number, float):
         number=int(number)
+    if isinstance(number, np.ndarray):
+        number=int(number[0].item())
     if isinstance(max_number, float):
         max_number=int(max_number)
     if size_control:

@@ -132,7 +132,7 @@ if __name__=="__main__":
                                          predict_candidates_X=predict_candidate_X,
                                          post_mean=result['post_mean'],
                                          post_stdev=result['post_std'],
-                                         x_label='Feature Stimulus',
+                                         x_label='Stimulus Feature',
                                          y_label='Responses',
                                          title="Uncertainty - Inlineres only")
             figure.savefig(os.path.join(base_dir, f"uncertainty_inliners_{opt}_{alpha}.png"))

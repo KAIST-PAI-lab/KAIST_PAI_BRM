@@ -559,4 +559,12 @@ def plot_convergence_and_frequency(gp_regressor: GaussianProcessRegressor, dataf
     axes[2].set_title("Figure C: Design Selection Histogram")
     
     return figure, axes
-    return figure, axes
+
+
+
+    
+
+
+
+    
+

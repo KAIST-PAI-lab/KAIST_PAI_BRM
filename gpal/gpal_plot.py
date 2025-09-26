@@ -104,7 +104,7 @@ def plot_GPAL_uncertainty(fig_size:Tuple[int, int],
                      post_mean+sigma_coef*post_stdev, alpha=0.3, label='Uncertainty')
     
     ## Setting the title and labels.
-    ax.set_title(title, fontsize=28)
+    ax.set_title(title, fontsize=24)
     ax.set_xlabel(x_label, fontsize=24)
     ax.set_ylabel(y_label, fontsize=24)
     
@@ -229,7 +229,7 @@ def plot_GPAL_compare_uncertainty(fig_size:Tuple[int, int],
         raise TypeError(f"title_target should be a string value, got the type of {type(title_target).__name__}.")
     
     ## Creating a figure with two subplots.
-    figure, (ax1, ax2)=plt.subplots(2,1, figsize=fig_size)
+    figure, (ax1, ax2)=plt.subplots(1,2, figsize=fig_size)
     
     ## Left subplot
     ## Plotting the experiment data up to the previous trial.
@@ -241,8 +241,8 @@ def plot_GPAL_compare_uncertainty(fig_size:Tuple[int, int],
                      post_mean_previous+sigma_coef*post_stdev_previous, alpha=0.3, label='Uncertainty')
     ## Plotting a dotted vertical line, at the design candidate associated with maximum posterior standard deviation.
     ax1.axvline(x=fit_data_X[-1], color='green', linestyle='--', linewidth=3)
-    ax1.set_xlabel(xlabel, fontsize=16)
-    ax1.set_ylabel(ylabel, fontsize=16)
+    ax1.set_xlabel(xlabel, fontsize=24)
+    ax1.set_ylabel(ylabel, fontsize=24)
     ## Setting the title for the left subplot.
     ax1.set_title(title_previous, fontsize=font_size)
     
@@ -259,8 +259,8 @@ def plot_GPAL_compare_uncertainty(fig_size:Tuple[int, int],
     ax2.scatter(fit_data_X[-1], obs_data_Y[-1], c='red')
     ## Plotting a dotted vertical line, at the design candidate associated with maximums posterior standard deviation.
     ax2.axvline(x=max_stdev_design, color='green', linestyle='--', linewidth=3)
-    ax2.set_xlabel(xlabel, fontsize=16)
-    ax2.set_ylabel(ylabel, fontsize=16)
+    ax2.set_xlabel(xlabel, fontsize=24)
+    ax2.set_ylabel(ylabel, fontsize=24)
     ## Setting the title for the right subplot.
     ax2.set_title(title_target, fontsize=font_size)
 
