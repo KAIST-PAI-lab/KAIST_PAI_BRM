@@ -1,4 +1,4 @@
-from gpal import plot_GPAL_uncertainty, plot_frequency_histogram_1D, plot_GPAL_compare_uncertainty
+from gpalexp import plot_GPAL_uncertainty, plot_frequency_histogram_1D, plot_GPAL_compare_uncertainty
 from outlier_detect import outlier_detect
 import pandas as pd
 import numpy as np

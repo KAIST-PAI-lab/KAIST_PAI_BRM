@@ -17,8 +17,8 @@ from psychopy import logging
 logging.console.setLevel(logging.ERROR)
 
 
-from gpal.gpr_instance import *
-from gpal.utils import argsConstructor
+from gpalexp.gpr_instance import *
+from gpalexp.utils import argsConstructor
 from nlt_main.utils.utils import collect_participant_info
 #from nlt_main.NLE.draw_dots import draw_grid_position, calculate_dot_size
 from nlt_main.main import run_experiment

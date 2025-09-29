@@ -6,9 +6,9 @@ import pandas as pd
 import math, time, os, yaml, random, warnings
 
 # Import some functions from utils
-from gpal.gpal_optimize import gpal_optimize
-from gpal.gpr_instance import GPRInstance
-from gpal.utils import argsConstructor
+from gpalexp.gpal_optimize import gpal_optimize
+from gpalexp.gpr_instance import GPRInstance
+from gpalexp.utils import argsConstructor
 
 # Suppress warning messages
 warnings.filterwarnings('ignore')

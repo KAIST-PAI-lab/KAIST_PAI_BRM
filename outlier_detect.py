@@ -8,7 +8,7 @@ from tqdm import tqdm
 import pickle
 import pandas as pd
 import matplotlib.pyplot as plt
-from gpal import plot_GP
+from gpalexp import plot_GP
 import warnings
 warnings.filterwarnings('ignore')
 

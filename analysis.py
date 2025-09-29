@@ -1,4 +1,4 @@
-from gpal import plot_GP, plot_selection_frequency, plot_convergence
+from gpalexp import plot_GP, plot_selection_frequency, plot_convergence
 from outlier_detect import outlier_detect_all
 import pandas as pd
 import numpy as np
@@ -10,7 +10,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from numpy.typing import NDArray
 from scipy.interpolate import interp1d
 from typing import Tuple, Optional
-from gpal.utils import BoundsType
+from gpalexp.utils import BoundsType
 from tqdm import tqdm
 import pickle
 import re
@@ -307,7 +307,7 @@ if __name__=="__main__":
                 ax2.set_ylim(0, 1)
                 ax2.set_xticks(np.arange(0, 500, 50))
 
-                filename2=os.path.join(fig_dir, f"histogram_experiments_average.png")
+                filename2=os.path.join(fig_dir, f"frequency_average_{sbjID}.png")
                 fig2.savefig(filename2)
 
                 fig3, ax3 = plotFreq(dir=ref_dir,
@@ -321,7 +321,7 @@ if __name__=="__main__":
                 ax3.set_xticks(np.arange(0, 500, 50))
                 ax3.tick_params(axis='x', labelsize=14)
 
-                filename3=os.path.join(fig_dir, f"histogram_experiments_sum.png")
+                filename3=os.path.join(fig_dir, f"frequency_sum_{sbjID}.png")
                 fig3.savefig(filename3)
 
                 
@@ -330,7 +330,7 @@ if __name__=="__main__":
                                 sbj_id=sbjID,
                                 file_name=f"{opt}_results_{sbjID}.csv")
 
-                filename4=os.path.join(fig_dir, f"convergence_plot.png")
+                filename4=os.path.join(fig_dir, f"convergence_{sbjID}.png")
                 fig4.savefig(filename4)
         
 

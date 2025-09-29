@@ -19,7 +19,7 @@ logging.console.setLevel(logging.ERROR)
 # Import some functions from utils
 from nlt_main.utils.utils import collect_participant_info, save_results
 from nlt_main.NLE.draw_dots import draw_grid_position, calculate_dot_size
-from gpal.gpal_optimize import gpal_optimize
+from gpalexp.gpal_optimize import gpal_optimize
 
 def show_instructions(visuals, text):
     """
